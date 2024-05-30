@@ -7,9 +7,7 @@ file(
 )
 
 add_compile_definitions(LOGGER_DLL)
-
 add_library(${MODULE_NAME} SHARED ${LOGGER_SRC})	
-
 target_include_directories(${MODULE_NAME}
 	PUBLIC "${PROJECT_BINARY_DIR}"
 )
