@@ -11,9 +11,13 @@ extern "C"
 {
 	class RenderLoop
 	{
-	private:
 	public:
 		RENDERER_RENDERLOOP_API RenderLoop();
+		RENDERER_RENDERLOOP_API void Run();
+	private:
+		RENDERER_RENDERLOOP_API void InitVulkan();
+		RENDERER_RENDERLOOP_API void MainLoop();
+		RENDERER_RENDERLOOP_API void Cleanup();
 	};
 }
 
