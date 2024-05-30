@@ -28,4 +28,4 @@ target_include_directories(${MODULE_NAME}
 # shaderc_combined.lib in Vulkan requires this for debug & release (runtime shader compiling)
 target_compile_options(Renderer PRIVATE "/MD")
 
-target_link_libraries(${MODULE_NAME} Logger Vulkan::Vulkan)
+target_link_libraries(${MODULE_NAME} Logger glfw)
