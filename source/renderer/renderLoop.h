@@ -6,25 +6,36 @@
 #else
 #define RENDERER_RENDERLOOP_API __declspec(dllimport)
 #endif
-#include "GLFW/glfw3.h"
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
 extern "C"
 {
 	class RenderLoop
 	{
 	public:
-		RENDERER_RENDERLOOP_API RenderLoop();
+		RENDERER_RENDERLOOP_API explicit RenderLoop(const std::string& windowName, const std::string& appName, const int32_t& width = 800, const int32_t& height = 600);
 		RENDERER_RENDERLOOP_API void Run();
 	private:
-		const uint32_t _windowWidth = 800;
-		const uint32_t _windowHeight = 600;
+		int32_t _windowWidth;
+		int32_t _windowHeight;
+		std::string _windowName;
+		std::string _appName;
+
 		GLFWwindow* _window;
+		VkInstance _instance;
 
 		RENDERER_RENDERLOOP_API void InitWindow();
 		RENDERER_RENDERLOOP_API void InitVulkan();
-		RENDERER_RENDERLOOP_API void MainLoop();
-		RENDERER_RENDERLOOP_API void Cleanup();
+		static void GetExtensions(uint32_t& extensionCount, std::vector<const char*>& extensions);
+		RENDERER_RENDERLOOP_API void CreateInstance();
+		RENDERER_RENDERLOOP_API void MainLoop() const;
+		RENDERER_RENDERLOOP_API void Cleanup() const;
 	};
 }
-
 #endif
