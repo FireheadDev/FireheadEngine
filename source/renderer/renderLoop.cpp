@@ -3,6 +3,11 @@
 #include <iostream>
 #include <vector>
 
+const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
+	"VK_LAYER_KHRONOS_validation",
+};
+
+
 RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName, const int32_t& width, const int32_t& height)
 {
 	_windowName = windowName;
@@ -40,15 +45,19 @@ void RenderLoop::InitVulkan()
 	CreateInstance();
 }
 
-void RenderLoop::GetExtensions(uint32_t& extensionCount, std::vector<const char*>& extensions)
+void RenderLoop::GetExtensions(std::vector<const char*>& extensions)
 {
+	uint32_t extensionCount = 0;
 	// Get required extensions for GLFW
 	const char** glfwExtension = glfwGetRequiredInstanceExtensions(&extensionCount);
 
-	for(uint32_t i = 0; i < extensionCount; ++i)
+	for (uint32_t i = 0; i < extensionCount; ++i)
 	{
 		extensions.push_back(glfwExtension[i]);
 	}
+
+	if(VALIDATION_LAYERS_ENABLED)
+		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
 
 	// Check all available extensions
@@ -58,10 +67,40 @@ void RenderLoop::GetExtensions(uint32_t& extensionCount, std::vector<const char*
 	vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data());
 
 	printf("Available Extensions:\n");
-	for(const auto& extension : availableExtensions)
+	for (const auto& extension : availableExtensions)
 	{
 		printf("\t%s\n", extension.extensionName);
 	}
+}
+
+void RenderLoop::GetLayers(std::vector<VkLayerProperties>& layers)
+{
+	uint32_t layerCount = 0;
+	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+	layers.resize(layerCount);
+	vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
+}
+
+bool RenderLoop::ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers)
+{
+	for (const char* layerName : VALIDATION_LAYERS)
+	{
+		bool layerFound = false;
+
+		for (const auto& layerProperties : availableLayers)
+		{
+			if (strcmp(layerName, layerProperties.layerName) == 0)
+			{
+				layerFound = true;
+				break;
+			}
+		}
+
+		if (!layerFound)
+			return false;
+	}
+
+	return true;
 }
 
 void RenderLoop::CreateInstance()
@@ -78,16 +117,33 @@ void RenderLoop::CreateInstance()
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	createInfo.pApplicationInfo = &appInfo;
 
-	uint32_t extensionCount = 0;
+
+	// Extensions
 	std::vector<const char*> extensions;
-	GetExtensions(extensionCount, extensions);
-
-	createInfo.enabledExtensionCount = extensionCount;
+	GetExtensions(extensions);
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
 	createInfo.ppEnabledExtensionNames = extensions.data();
-	createInfo.enabledLayerCount = 0;
+
+	// Layers
+	std::vector<VkLayerProperties> layers;
+	GetLayers(layers);
+	// ReSharper disable once CppRedundantBooleanExpressionArgument
+	if (VALIDATION_LAYERS_ENABLED && !ValidateLayerSupport(layers))
+	{
+		throw std::runtime_error("Validation layers requested, but not available!");
+	}
+	if (VALIDATION_LAYERS_ENABLED)
+	{
+		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+	}
+	else
+	{
+		createInfo.enabledLayerCount = 0;
+	}
 
 
-	if(const VkResult result = vkCreateInstance(&createInfo, nullptr, &_instance); result != VK_SUCCESS)
+	if (const VkResult result = vkCreateInstance(&createInfo, nullptr, &_instance); result != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create instance! " + std::to_string(result));
 	}
