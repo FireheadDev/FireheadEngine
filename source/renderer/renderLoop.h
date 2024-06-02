@@ -14,6 +14,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "../core/FHEMacros.h"
+
 extern "C"
 {
 	class RenderLoop
@@ -30,9 +32,14 @@ extern "C"
 		GLFWwindow* _window;
 		VkInstance _instance;
 
+		const static std::vector<const char*> VALIDATION_LAYERS;
+		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING(true, false);
+
 		RENDERER_RENDERLOOP_API void InitWindow();
 		RENDERER_RENDERLOOP_API void InitVulkan();
-		static void GetExtensions(uint32_t& extensionCount, std::vector<const char*>& extensions);
+		static void GetExtensions(std::vector<const char*>& extensions);
+		static void GetLayers(std::vector<VkLayerProperties>& layers);
+		static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
 		RENDERER_RENDERLOOP_API void CreateInstance();
 		RENDERER_RENDERLOOP_API void MainLoop() const;
 		RENDERER_RENDERLOOP_API void Cleanup() const;
