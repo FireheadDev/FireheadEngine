@@ -5,7 +5,7 @@
 #ifdef NDEBUG
 	#define IS_DEBUGGING(valueOnTrue, valueOnFalse) valueOnFalse
 #else
-	#define IS_DEBUGGING(valueOnTrue, valueOnFalse) valueOnTrue
+	#define IS_DEBUGGING_TERNARY(valueOnTrue, valueOnFalse) valueOnTrue
 #endif
 
 
