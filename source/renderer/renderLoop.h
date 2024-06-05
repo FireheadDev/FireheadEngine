@@ -32,17 +32,30 @@ extern "C"
 		GLFWwindow* _window;
 		VkInstance _instance;
 
-		const static std::vector<const char*> VALIDATION_LAYERS;
-		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING(true, false);
+		VkDebugUtilsMessengerEXT _debugMessenger;
 
-		RENDERER_RENDERLOOP_API void InitWindow();
-		RENDERER_RENDERLOOP_API void InitVulkan();
+#pragma region Compile-Time Staic Members
+		const static std::vector<const char*> VALIDATION_LAYERS;
+		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
+#pragma endregion
+
+#pragma region Initialization
+		void InitWindow();
+		void InitVulkan();
+		void SetupDebugMessenger();
 		static void GetExtensions(std::vector<const char*>& extensions);
 		static void GetLayers(std::vector<VkLayerProperties>& layers);
 		static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
-		RENDERER_RENDERLOOP_API void CreateInstance();
-		RENDERER_RENDERLOOP_API void MainLoop() const;
-		RENDERER_RENDERLOOP_API void Cleanup() const;
+		void CreateInstance();
+#pragma endregion
+
+		void MainLoop() const;
+		void Cleanup() const;
+
+#pragma region Extension Functions
+		VkResult CreateDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator);
+		VkResult DestroyDebugUtilsMessengerEXT(const VkAllocationCallbacks* pAllocator) const;
+#pragma endregion
 	};
 }
 #endif
