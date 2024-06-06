@@ -51,16 +51,21 @@ void RenderLoop::InitVulkan()
 	SetupDebugMessenger();
 }
 
-void RenderLoop::SetupDebugMessenger()
+void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
-	if constexpr (!VALIDATION_LAYERS_ENABLED) return;
-
-	VkDebugUtilsMessengerCreateInfoEXT createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 	createInfo.pfnUserCallback = Logger::VulkanDebugCallback;
 	createInfo.pUserData = nullptr;
+}
+
+void RenderLoop::SetupDebugMessenger()
+{
+	if constexpr (!VALIDATION_LAYERS_ENABLED) return;
+
+	VkDebugUtilsMessengerCreateInfoEXT createInfo{};
+	PopulateDebugMessengerCreateInfo(createInfo);
 
 	if(CreateDebugUtilsMessengerEXT(&createInfo, nullptr))
 		throw std::runtime_error("Failed to set up debug messenger!");
@@ -153,14 +158,20 @@ void RenderLoop::CreateInstance()
 	{
 		throw std::runtime_error("Validation layers requested, but not available!");
 	}
+
+	VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo{};
 	if (VALIDATION_LAYERS_ENABLED)
 	{
 		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
 		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+		PopulateDebugMessengerCreateInfo(debugMessengerCreateInfo);
+		createInfo.pNext = &debugMessengerCreateInfo;
 	}
 	else
+	// ReSharper disable once CppUnreachableCode
 	{
 		createInfo.enabledLayerCount = 0;
+		createInfo.pNext = nullptr;
 	}
 
 
