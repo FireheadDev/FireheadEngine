@@ -49,6 +49,7 @@ void RenderLoop::InitVulkan()
 {
 	CreateInstance();
 	SetupDebugMessenger();
+	SelectPhysicalDevice();
 }
 
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -127,6 +128,42 @@ bool RenderLoop::ValidateLayerSupport(const std::vector<VkLayerProperties>& avai
 	}
 
 	return true;
+}
+
+void RenderLoop::SelectPhysicalDevice()
+{
+	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+
+	uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr);
+
+	if(deviceCount == 0)
+		throw std::runtime_error("Failed to find GPUs with Vulkan support!");
+
+	std::vector<VkPhysicalDevice> availableDevices(deviceCount);
+	vkEnumeratePhysicalDevices(_instance, &deviceCount, availableDevices.data());
+	for(const auto& device : availableDevices)
+	{
+		if(IsDeviceSuitable(device))
+		{
+			physicalDevice = device;
+			break;
+		}
+	}
+
+	if(physicalDevice == VK_NULL_HANDLE)
+		throw std::runtime_error("Failed to find a suitable GPU!");
+
+}
+
+bool RenderLoop::IsDeviceSuitable(const VkPhysicalDevice device) const
+{
+	VkPhysicalDeviceProperties deviceProperties;
+	VkPhysicalDeviceFeatures deviceFeatures;
+	vkGetPhysicalDeviceProperties(device, &deviceProperties);
+	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+	return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader;
 }
 
 void RenderLoop::CreateInstance()
