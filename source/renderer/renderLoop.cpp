@@ -1,6 +1,7 @@
 #include "renderLoop.h"
 
 #include <iostream>
+#include <map>
 #include <vector>
 
 #include "../logger/logger.h"
@@ -130,7 +131,7 @@ bool RenderLoop::ValidateLayerSupport(const std::vector<VkLayerProperties>& avai
 	return true;
 }
 
-void RenderLoop::SelectPhysicalDevice()
+void RenderLoop::SelectPhysicalDevice() const
 {
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 
@@ -142,28 +143,40 @@ void RenderLoop::SelectPhysicalDevice()
 
 	std::vector<VkPhysicalDevice> availableDevices(deviceCount);
 	vkEnumeratePhysicalDevices(_instance, &deviceCount, availableDevices.data());
+
+	std::multimap<int, VkPhysicalDevice> deviceCandidates;
+	int32_t score;
 	for(const auto& device : availableDevices)
 	{
-		if(IsDeviceSuitable(device))
-		{
-			physicalDevice = device;
-			break;
-		}
+		score = RateDeviceSuitability(device);
+		deviceCandidates.insert(std::make_pair(score, device));
 	}
 
-	if(physicalDevice == VK_NULL_HANDLE)
+	if(deviceCandidates.rbegin()->first > 0)
+		physicalDevice = deviceCandidates.rbegin()->second;
+	else
 		throw std::runtime_error("Failed to find a suitable GPU!");
 
 }
 
-bool RenderLoop::IsDeviceSuitable(const VkPhysicalDevice device) const
+int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device)
 {
 	VkPhysicalDeviceProperties deviceProperties;
 	VkPhysicalDeviceFeatures deviceFeatures;
 	vkGetPhysicalDeviceProperties(device, &deviceProperties);
 	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
-	return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader;
+	int32_t score = 0;
+
+	// Ideal traits
+	if(deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+		score += 1000;
+	score += static_cast<int32_t>(deviceProperties.limits.maxImageDimension2D);
+
+	if(!deviceFeatures.geometryShader)
+		return 0;
+
+	return score;
 }
 
 void RenderLoop::CreateInstance()

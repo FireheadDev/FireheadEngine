@@ -49,8 +49,8 @@ extern "C"
 		static void GetLayers(std::vector<VkLayerProperties>& layers);
 		static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
 
-		void SelectPhysicalDevice();
-		bool IsDeviceSuitable(VkPhysicalDevice device) const;
+		void SelectPhysicalDevice() const;
+		static int32_t RateDeviceSuitability(VkPhysicalDevice device);
 
 		void CreateInstance();
 #pragma endregion
