@@ -42,6 +42,7 @@ extern "C"
 #pragma region Initialization
 		void InitWindow();
 		void InitVulkan();
+		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
 		static void GetExtensions(std::vector<const char*>& extensions);
 		static void GetLayers(std::vector<VkLayerProperties>& layers);
