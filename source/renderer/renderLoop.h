@@ -42,11 +42,16 @@ extern "C"
 #pragma region Initialization
 		void InitWindow();
 		void InitVulkan();
+
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
 		static void GetExtensions(std::vector<const char*>& extensions);
 		static void GetLayers(std::vector<VkLayerProperties>& layers);
 		static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
+
+		void SelectPhysicalDevice();
+		bool IsDeviceSuitable(VkPhysicalDevice device) const;
+
 		void CreateInstance();
 #pragma endregion
 
