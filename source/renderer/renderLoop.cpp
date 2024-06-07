@@ -4,7 +4,7 @@
 #include <map>
 #include <vector>
 
-#include "../logger/logger.h"
+#include "../logger/Logger.h"
 
 const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
 	"VK_LAYER_KHRONOS_validation",
