@@ -16,6 +16,8 @@
 
 #include "../core/FHEMacros.h"
 
+struct QueueFamilyIndices;
+
 extern "C"
 {
 	class RenderLoop
@@ -49,8 +51,9 @@ extern "C"
 		static void GetLayers(std::vector<VkLayerProperties>& layers);
 		static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
 
-		void SelectPhysicalDevice() const;
+		static QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 		static int32_t RateDeviceSuitability(VkPhysicalDevice device);
+		void SelectPhysicalDevice() const;
 
 		void CreateInstance();
 #pragma endregion

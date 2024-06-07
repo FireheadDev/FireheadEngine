@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 
+#include "QueueFamilyIndices.h"
 #include "../logger/Logger.h"
 
 const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
@@ -131,6 +132,52 @@ bool RenderLoop::ValidateLayerSupport(const std::vector<VkLayerProperties>& avai
 	return true;
 }
 
+QueueFamilyIndices RenderLoop::FindQueueFamilies(VkPhysicalDevice device)
+{
+	QueueFamilyIndices indices;
+
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+	int i = 0;
+	for(const auto& queueFamily : queueFamilies)
+	{
+		if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			indices.graphicsFamily = i;
+
+		if(indices.IsComplete())
+			break;
+
+		++i;
+	}
+
+	return indices;
+}
+
+int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device)
+{
+	const QueueFamilyIndices indices = FindQueueFamilies(device);
+
+	VkPhysicalDeviceProperties deviceProperties;
+	VkPhysicalDeviceFeatures deviceFeatures;
+	vkGetPhysicalDeviceProperties(device, &deviceProperties);
+	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+	int32_t score = 0;
+
+	// Ideal traits
+	if(deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+		score += 1000;
+	score += static_cast<int32_t>(deviceProperties.limits.maxImageDimension2D);
+
+	if(!deviceFeatures.geometryShader || !indices.IsComplete())
+		return 0;
+
+	return score;
+}
+
 void RenderLoop::SelectPhysicalDevice() const
 {
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -157,26 +204,6 @@ void RenderLoop::SelectPhysicalDevice() const
 	else
 		throw std::runtime_error("Failed to find a suitable GPU!");
 
-}
-
-int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device)
-{
-	VkPhysicalDeviceProperties deviceProperties;
-	VkPhysicalDeviceFeatures deviceFeatures;
-	vkGetPhysicalDeviceProperties(device, &deviceProperties);
-	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
-
-	int32_t score = 0;
-
-	// Ideal traits
-	if(deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-		score += 1000;
-	score += static_cast<int32_t>(deviceProperties.limits.maxImageDimension2D);
-
-	if(!deviceFeatures.geometryShader)
-		return 0;
-
-	return score;
 }
 
 void RenderLoop::CreateInstance()
