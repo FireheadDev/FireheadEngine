@@ -52,6 +52,59 @@ void RenderLoop::InitVulkan()
 	CreateInstance();
 	SetupDebugMessenger();
 	SelectPhysicalDevice();
+	CreateLogicalDevice();
+}
+
+void RenderLoop::CreateInstance()
+{
+	VkApplicationInfo appInfo{};
+	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.pApplicationName = _appName.c_str();
+	appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
+	appInfo.pEngineName = "No Engine... yet";
+	appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
+	appInfo.apiVersion = VK_API_VERSION_1_3;
+
+	VkInstanceCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	createInfo.pApplicationInfo = &appInfo;
+
+
+	// Extensions
+	std::vector<const char*> extensions;
+	GetExtensions(extensions);
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+	createInfo.ppEnabledExtensionNames = extensions.data();
+
+	// Layers
+	std::vector<VkLayerProperties> layers;
+	GetLayers(layers);
+	// ReSharper disable once CppRedundantBooleanExpressionArgument
+	if (VALIDATION_LAYERS_ENABLED && !ValidateLayerSupport(layers))
+	{
+		throw std::runtime_error("Validation layers requested, but not available!");
+	}
+
+	VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo{};
+	if (VALIDATION_LAYERS_ENABLED)
+	{
+		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
+		PopulateDebugMessengerCreateInfo(debugMessengerCreateInfo);
+		createInfo.pNext = &debugMessengerCreateInfo;
+	}
+	else
+		// ReSharper disable once CppUnreachableCode
+	{
+		createInfo.enabledLayerCount = 0;
+		createInfo.pNext = nullptr;
+	}
+
+
+	if (const VkResult result = vkCreateInstance(&createInfo, nullptr, &_instance); result != VK_SUCCESS)
+	{
+		throw std::runtime_error("Failed to create instance! " + std::to_string(result));
+	}
 }
 
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -70,7 +123,7 @@ void RenderLoop::SetupDebugMessenger()
 	VkDebugUtilsMessengerCreateInfoEXT createInfo{};
 	PopulateDebugMessengerCreateInfo(createInfo);
 
-	if(CreateDebugUtilsMessengerEXT(&createInfo, nullptr))
+	if (CreateDebugUtilsMessengerEXT(&createInfo, nullptr))
 		throw std::runtime_error("Failed to set up debug messenger!");
 }
 
@@ -132,7 +185,7 @@ bool RenderLoop::ValidateLayerSupport(const std::vector<VkLayerProperties>& avai
 	return true;
 }
 
-QueueFamilyIndices RenderLoop::FindQueueFamilies(VkPhysicalDevice device)
+QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice device)
 {
 	QueueFamilyIndices indices;
 
@@ -142,12 +195,12 @@ QueueFamilyIndices RenderLoop::FindQueueFamilies(VkPhysicalDevice device)
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
 	int i = 0;
-	for(const auto& queueFamily : queueFamilies)
+	for (const auto& queueFamily : queueFamilies)
 	{
-		if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			indices.graphicsFamily = i;
 
-		if(indices.IsComplete())
+		if (indices.IsComplete())
 			break;
 
 		++i;
@@ -168,24 +221,23 @@ int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device)
 	int32_t score = 0;
 
 	// Ideal traits
-	if(deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+	if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 		score += 1000;
 	score += static_cast<int32_t>(deviceProperties.limits.maxImageDimension2D);
 
-	if(!deviceFeatures.geometryShader || !indices.IsComplete())
+	if (!deviceFeatures.geometryShader || !indices.IsComplete())
 		return 0;
 
 	return score;
 }
 
-void RenderLoop::SelectPhysicalDevice() const
+VkPhysicalDevice RenderLoop::SelectPhysicalDevice() const
 {
-	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr);
 
-	if(deviceCount == 0)
+	if (deviceCount == 0)
 		throw std::runtime_error("Failed to find GPUs with Vulkan support!");
 
 	std::vector<VkPhysicalDevice> availableDevices(deviceCount);
@@ -193,69 +245,61 @@ void RenderLoop::SelectPhysicalDevice() const
 
 	std::multimap<int, VkPhysicalDevice> deviceCandidates;
 	int32_t score;
-	for(const auto& device : availableDevices)
+	for (const auto& device : availableDevices)
 	{
 		score = RateDeviceSuitability(device);
 		deviceCandidates.insert(std::make_pair(score, device));
 	}
 
-	if(deviceCandidates.rbegin()->first > 0)
-		physicalDevice = deviceCandidates.rbegin()->second;
-	else
-		throw std::runtime_error("Failed to find a suitable GPU!");
+	if (deviceCandidates.rbegin()->first > 0)
+		return deviceCandidates.rbegin()->second;
 
+	throw std::runtime_error("Failed to find a suitable GPU!");
+	return VK_NULL_HANDLE;
 }
 
-void RenderLoop::CreateInstance()
+void RenderLoop::CreateLogicalDevice()
 {
-	VkApplicationInfo appInfo{};
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = _appName.c_str();
-	appInfo.applicationVersion = VK_MAKE_VERSION(0, 0, 1);
-	appInfo.pEngineName = "No Engine... yet";
-	appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
-	appInfo.apiVersion = VK_API_VERSION_1_3;
-
-	VkInstanceCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pApplicationInfo = &appInfo;
-
-
-	// Extensions
-	std::vector<const char*> extensions;
-	GetExtensions(extensions);
-	createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-	createInfo.ppEnabledExtensionNames = extensions.data();
-
-	// Layers
-	std::vector<VkLayerProperties> layers;
-	GetLayers(layers);
-	// ReSharper disable once CppRedundantBooleanExpressionArgument
-	if (VALIDATION_LAYERS_ENABLED && !ValidateLayerSupport(layers))
+	const VkPhysicalDevice physicalDevice = SelectPhysicalDevice();
+	const QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
+	if (!indices.IsComplete())
 	{
-		throw std::runtime_error("Validation layers requested, but not available!");
+		throw std::runtime_error("Failed to find the necessary queue family!");
+		return;
 	}
 
-	VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo{};
+	VkDeviceQueueCreateInfo queueCreateInfo{};
+	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();  // NOLINT(bugprone-unchecked-optional-access)
+	queueCreateInfo.queueCount = 1;
+	const float queuePriority = 1.f;
+	queueCreateInfo.pQueuePriorities = &queuePriority;
+
+	const VkPhysicalDeviceFeatures deviceFeatures{};
+
+	VkDeviceCreateInfo deviceCreateInfo{};
+	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+	deviceCreateInfo.queueCreateInfoCount = 1;
+	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+	deviceCreateInfo.enabledExtensionCount = 0;
+
 	if (VALIDATION_LAYERS_ENABLED)
 	{
-		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
-		createInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
-		PopulateDebugMessengerCreateInfo(debugMessengerCreateInfo);
-		createInfo.pNext = &debugMessengerCreateInfo;
+		deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYERS.size());
+		deviceCreateInfo.ppEnabledLayerNames = VALIDATION_LAYERS.data();
 	}
 	else
-	// ReSharper disable once CppUnreachableCode
 	{
-		createInfo.enabledLayerCount = 0;
-		createInfo.pNext = nullptr;
+		deviceCreateInfo.enabledLayerCount = 0;
 	}
 
-
-	if (const VkResult result = vkCreateInstance(&createInfo, nullptr, &_instance); result != VK_SUCCESS)
+	if(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &_device) != VK_SUCCESS)
 	{
-		throw std::runtime_error("Failed to create instance! " + std::to_string(result));
+		throw std::runtime_error("Failed to create logical device!");
 	}
+
+	vkGetDeviceQueue(_device, indices.graphicsFamily.value(), 0, &_graphicsQueue);  // NOLINT(bugprone-unchecked-optional-access)
 }
 
 void RenderLoop::MainLoop() const
@@ -268,8 +312,9 @@ void RenderLoop::MainLoop() const
 
 void RenderLoop::Cleanup() const
 {
-	if(VALIDATION_LAYERS_ENABLED)
+	if (VALIDATION_LAYERS_ENABLED)
 		(void)DestroyDebugUtilsMessengerEXT(nullptr);
+	vkDestroyDevice(_device, nullptr);
 	vkDestroyInstance(_instance, nullptr);
 
 	glfwDestroyWindow(_window);
@@ -286,7 +331,7 @@ VkResult RenderLoop::CreateDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCre
 
 VkResult RenderLoop::DestroyDebugUtilsMessengerEXT(const VkAllocationCallbacks* pAllocator) const
 {
-	if(const auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(_instance, "vkDestroyDebugUtilsMessengerEXT")))  // NOLINT(clang-diagnostic-cast-function-type-strict)
+	if (const auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(_instance, "vkDestroyDebugUtilsMessengerEXT")))  // NOLINT(clang-diagnostic-cast-function-type-strict)
 	{
 		func(_instance, _debugMessenger, pAllocator);
 		return VK_SUCCESS;
