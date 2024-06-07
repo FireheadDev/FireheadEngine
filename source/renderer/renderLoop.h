@@ -33,6 +33,8 @@ extern "C"
 
 		GLFWwindow* _window;
 		VkInstance _instance;
+		VkDevice _device;
+		VkQueue _graphicsQueue;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
@@ -45,6 +47,8 @@ extern "C"
 		void InitWindow();
 		void InitVulkan();
 
+		void CreateInstance();
+
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
 		static void GetExtensions(std::vector<const char*>& extensions);
@@ -53,9 +57,8 @@ extern "C"
 
 		static QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
 		static int32_t RateDeviceSuitability(VkPhysicalDevice device);
-		void SelectPhysicalDevice() const;
-
-		void CreateInstance();
+		VkPhysicalDevice SelectPhysicalDevice() const;
+		void CreateLogicalDevice();
 #pragma endregion
 
 		void MainLoop() const;
