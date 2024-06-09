@@ -51,8 +51,14 @@ void RenderLoop::InitVulkan()
 {
 	CreateInstance();
 	SetupDebugMessenger();
-	SelectPhysicalDevice();
+	CreateSurface();
 	CreateLogicalDevice();
+}
+
+void RenderLoop::CreateSurface()
+{
+	if(glfwCreateWindowSurface(_instance, _window, nullptr, &_surface) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create window surface!");
 }
 
 void RenderLoop::CreateInstance()
@@ -315,11 +321,14 @@ void RenderLoop::Cleanup() const
 	if (VALIDATION_LAYERS_ENABLED)
 		(void)DestroyDebugUtilsMessengerEXT(nullptr);
 	vkDestroyDevice(_device, nullptr);
+	vkDestroySurfaceKHR(_instance, _surface, nullptr);
 	vkDestroyInstance(_instance, nullptr);
 
 	glfwDestroyWindow(_window);
 	glfwTerminate();
 }
+
+
 
 
 VkResult RenderLoop::CreateDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator)

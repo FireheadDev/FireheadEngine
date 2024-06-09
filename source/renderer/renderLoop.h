@@ -11,8 +11,11 @@
 #include <string>
 #include <vector>
 
+#define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 #include "../core/FHEMacros.h"
 
@@ -37,6 +40,7 @@ extern "C"
 		VkQueue _graphicsQueue;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
+		VkSurfaceKHR _surface;
 
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
@@ -46,7 +50,8 @@ extern "C"
 #pragma region Initialization
 		void InitWindow();
 		void InitVulkan();
-
+		
+		void CreateSurface();
 		void CreateInstance();
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
