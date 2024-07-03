@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <map>
+#include <set>
 #include <vector>
 
 #include "QueueFamilyIndices.h"
@@ -57,7 +58,7 @@ void RenderLoop::InitVulkan()
 
 void RenderLoop::CreateSurface()
 {
-	if(glfwCreateWindowSurface(_instance, _window, nullptr, &_surface) != VK_SUCCESS)
+	if (glfwCreateWindowSurface(_instance, _window, nullptr, &_surface) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create window surface!");
 }
 
@@ -191,7 +192,7 @@ bool RenderLoop::ValidateLayerSupport(const std::vector<VkLayerProperties>& avai
 	return true;
 }
 
-QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice device)
+QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice device) const
 {
 	QueueFamilyIndices indices;
 
@@ -206,6 +207,14 @@ QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice device)
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			indices.graphicsFamily = i;
 
+		VkBool32 presentationSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, _surface, &presentationSupport);
+
+		if (presentationSupport)
+		{
+			indices.presentFamily = i;
+		}
+
 		if (indices.IsComplete())
 			break;
 
@@ -215,7 +224,7 @@ QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice device)
 	return indices;
 }
 
-int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device)
+int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device) const
 {
 	const QueueFamilyIndices indices = FindQueueFamilies(device);
 
@@ -270,23 +279,31 @@ void RenderLoop::CreateLogicalDevice()
 	const QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
 	if (!indices.IsComplete())
 	{
-		throw std::runtime_error("Failed to find the necessary queue family!");
+		throw std::runtime_error("Failed to find the necessary queue families!");
 		return;
 	}
 
-	VkDeviceQueueCreateInfo queueCreateInfo{};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();  // NOLINT(bugprone-unchecked-optional-access)
-	queueCreateInfo.queueCount = 1;
-	const float queuePriority = 1.f;
-	queueCreateInfo.pQueuePriorities = &queuePriority;
+	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+	const std::set uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };  // NOLINT(bugprone-unchecked-optional-access)
+
+	float queuePriority = 1.f;
+	for (uint32_t queueFamily : uniqueQueueFamilies)
+	{
+		VkDeviceQueueCreateInfo queueCreateInfo{};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfo.queueFamilyIndex = queueFamily;
+		queueCreateInfo.queueCount = 1;
+		queueCreateInfo.pQueuePriorities = &queuePriority;
+
+		queueCreateInfos.push_back(queueCreateInfo);
+	}
 
 	const VkPhysicalDeviceFeatures deviceFeatures{};
 
 	VkDeviceCreateInfo deviceCreateInfo{};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
-	deviceCreateInfo.queueCreateInfoCount = 1;
+	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
+	deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
 	deviceCreateInfo.enabledExtensionCount = 0;
 
@@ -300,12 +317,13 @@ void RenderLoop::CreateLogicalDevice()
 		deviceCreateInfo.enabledLayerCount = 0;
 	}
 
-	if(vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &_device) != VK_SUCCESS)
+	if (vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &_device) != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create logical device!");
 	}
 
 	vkGetDeviceQueue(_device, indices.graphicsFamily.value(), 0, &_graphicsQueue);  // NOLINT(bugprone-unchecked-optional-access)
+	vkGetDeviceQueue(_device, indices.presentFamily.value(), 0, &_presentationQueue);  // NOLINT(bugprone-unchecked-optional-access)
 }
 
 void RenderLoop::MainLoop() const

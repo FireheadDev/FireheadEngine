@@ -38,6 +38,7 @@ extern "C"
 		VkInstance _instance;
 		VkDevice _device;
 		VkQueue _graphicsQueue;
+		VkQueue _presentationQueue;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 		VkSurfaceKHR _surface;
@@ -60,8 +61,8 @@ extern "C"
 		static void GetLayers(std::vector<VkLayerProperties>& layers);
 		static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
 
-		static QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
-		static int32_t RateDeviceSuitability(VkPhysicalDevice device);
+		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
+		int32_t RateDeviceSuitability(VkPhysicalDevice device) const;
 		VkPhysicalDevice SelectPhysicalDevice() const;
 		void CreateLogicalDevice();
 #pragma endregion
