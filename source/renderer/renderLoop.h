@@ -43,6 +43,9 @@ extern "C"
 		VkQueue _graphicsQueue;
 		VkQueue _presentationQueue;
 		VkSwapchainKHR _swapChain;
+		std::vector<VkImage> _swapChainImages;
+		VkFormat _swapChainImageFormat;
+		VkExtent2D _swapChainExtent;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 

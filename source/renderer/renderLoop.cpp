@@ -33,6 +33,9 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_surface = nullptr;
 	_graphicsQueue = nullptr;
 	_presentationQueue = nullptr;
+	_swapChain = nullptr;
+	_swapChainImageFormat = {};
+	_swapChainExtent = {};
 
 	_debugMessenger = nullptr;
 
@@ -228,6 +231,14 @@ void RenderLoop::CreateSwapChain(const VkPhysicalDevice& physicalDevice)
 	{
 		throw std::runtime_error("Failed to create swap chain!");
 	}
+
+
+	vkGetSwapchainImagesKHR(_device, _swapChain, &imageCount, nullptr);
+	_swapChainImages.resize(imageCount);
+	vkGetSwapchainImagesKHR(_device, _swapChain, &imageCount, _swapChainImages.data());
+
+	_swapChainImageFormat = surfaceFormat.format;
+	_swapChainExtent = extent;
 }
 
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
