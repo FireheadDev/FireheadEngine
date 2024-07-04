@@ -1,7 +1,6 @@
 #include "renderLoop.h"
 
 #include <algorithm>
-#include <corecrt_io.h>
 #include <iostream>
 #include <limits>
 #include <map>
