@@ -11,14 +11,16 @@
 #include <string>
 #include <vector>
 
+#define NOMINMAX
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
+//#include <GLFW/glfw3native.h>
 
 #include "../core/FHEMacros.h"
 
+struct SwapChainSupportDetails;
 struct QueueFamilyIndices;
 
 extern "C"
@@ -37,34 +39,42 @@ extern "C"
 		GLFWwindow* _window;
 		VkInstance _instance;
 		VkDevice _device;
+		VkSurfaceKHR _surface;
 		VkQueue _graphicsQueue;
 		VkQueue _presentationQueue;
+		VkSwapchainKHR _swapChain;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
-		VkSurfaceKHR _surface;
 
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
 		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
+		const static std::vector<const char*> DEVICE_EXTENSIONS;
 #pragma endregion
 
 #pragma region Initialization
 		void InitWindow();
 		void InitVulkan();
-		
+
 		void CreateSurface();
 		void CreateInstance();
+		void CreateLogicalDevice(const VkPhysicalDevice& physicalDevice);
+		void CreateSwapChain(const VkPhysicalDevice& physicalDevice);
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
 		static void GetExtensions(std::vector<const char*>& extensions);
 		static void GetLayers(std::vector<VkLayerProperties>& layers);
-		static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
+		[[nodiscard]] static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
+		[[nodiscard]] static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+		[[nodiscard]] static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+		[[nodiscard]] VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
 
-		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
-		int32_t RateDeviceSuitability(VkPhysicalDevice device) const;
-		VkPhysicalDevice SelectPhysicalDevice() const;
-		void CreateLogicalDevice();
+		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
+		[[nodiscard]] SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device) const;
+		[[nodiscard]] int32_t RateDeviceSuitability(VkPhysicalDevice device) const;
+		[[nodiscard]] static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
+		[[nodiscard]] VkPhysicalDevice SelectPhysicalDevice() const;
 #pragma endregion
 
 		void MainLoop() const;
