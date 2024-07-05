@@ -69,6 +69,7 @@ void RenderLoop::InitVulkan()
 	const VkPhysicalDevice physicalDevice = SelectPhysicalDevice();
 	CreateLogicalDevice(physicalDevice);
 	CreateSwapChain(physicalDevice);
+	CreateImageViews();
 }
 
 void RenderLoop::CreateSurface()
@@ -191,7 +192,7 @@ void RenderLoop::CreateSwapChain(const VkPhysicalDevice& physicalDevice)
 	VkExtent2D extent = ChooseSwapExtent(swapChainSupport.capabilities);
 	// Only requesting the minimum image count can lead to waiting on the driver to complete operations, so an additional image is requested here
 	uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-	if(swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
+	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
 		imageCount = swapChainSupport.capabilities.maxImageCount;
 
 	VkSwapchainCreateInfoKHR createInfo{};
@@ -205,8 +206,8 @@ void RenderLoop::CreateSwapChain(const VkPhysicalDevice& physicalDevice)
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 	const QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
-	const std::vector<uint32_t> queueFamilyIndices = {indices.graphicsFamily.value(), indices.presentFamily.value()};  // NOLINT(bugprone-unchecked-optional-access)
-	if(indices.graphicsFamily != indices.presentFamily)
+	const std::vector<uint32_t> queueFamilyIndices = { indices.graphicsFamily.value(), indices.presentFamily.value() };  // NOLINT(bugprone-unchecked-optional-access)
+	if (indices.graphicsFamily != indices.presentFamily)
 	{
 		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		createInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
@@ -227,7 +228,7 @@ void RenderLoop::CreateSwapChain(const VkPhysicalDevice& physicalDevice)
 	createInfo.clipped = VK_TRUE;
 	createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-	if(vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swapChain) != VK_SUCCESS)
+	if (vkCreateSwapchainKHR(_device, &createInfo, nullptr, &_swapChain) != VK_SUCCESS)
 	{
 		throw std::runtime_error("Failed to create swap chain!");
 	}
@@ -239,6 +240,34 @@ void RenderLoop::CreateSwapChain(const VkPhysicalDevice& physicalDevice)
 
 	_swapChainImageFormat = surfaceFormat.format;
 	_swapChainExtent = extent;
+}
+
+void RenderLoop::CreateImageViews()
+{
+	_swapChainImageViews.resize(_swapChainImages.size());
+
+	for (size_t i = 0; i < _swapChainImages.size(); ++i)
+	{
+		VkImageViewCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		createInfo.image = _swapChainImages[i];
+		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		createInfo.format = _swapChainImageFormat;
+
+		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+		createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.baseMipLevel = 0;
+		createInfo.subresourceRange.levelCount = 1;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.layerCount = 1;
+
+		if(vkCreateImageView(_device, &createInfo, nullptr, &_swapChainImageViews[i]) != VK_SUCCESS)
+			throw std::runtime_error("Failed to create image views!");
+	}
 }
 
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -506,6 +535,10 @@ void RenderLoop::Cleanup() const
 {
 	if (VALIDATION_LAYERS_ENABLED)
 		(void)DestroyDebugUtilsMessengerEXT(nullptr);
+	for(const auto imageView : _swapChainImageViews)
+	{
+		vkDestroyImageView(_device, imageView, nullptr);
+	}
 	vkDestroySwapchainKHR(_device, _swapChain, nullptr);
 	vkDestroyDevice(_device, nullptr);
 	vkDestroySurfaceKHR(_instance, _surface, nullptr);

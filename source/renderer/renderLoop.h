@@ -43,9 +43,10 @@ extern "C"
 		VkQueue _graphicsQueue;
 		VkQueue _presentationQueue;
 		VkSwapchainKHR _swapChain;
-		std::vector<VkImage> _swapChainImages;
 		VkFormat _swapChainImageFormat;
 		VkExtent2D _swapChainExtent;
+		std::vector<VkImage> _swapChainImages;
+		std::vector<VkImageView> _swapChainImageViews;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
@@ -63,6 +64,7 @@ extern "C"
 		void CreateInstance();
 		void CreateLogicalDevice(const VkPhysicalDevice& physicalDevice);
 		void CreateSwapChain(const VkPhysicalDevice& physicalDevice);
+		void CreateImageViews();
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
