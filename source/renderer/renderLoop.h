@@ -75,6 +75,7 @@ extern "C"
 		[[nodiscard]] static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 		[[nodiscard]] static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 		[[nodiscard]] VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
+		[[nodiscard]] VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode) const;
 
 		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
 		[[nodiscard]] SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device) const;
