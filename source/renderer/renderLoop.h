@@ -65,6 +65,7 @@ extern "C"
 		void CreateLogicalDevice(const VkPhysicalDevice& physicalDevice);
 		void CreateSwapChain(const VkPhysicalDevice& physicalDevice);
 		void CreateImageViews();
+		void CreateGraphicsPipeline();
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();

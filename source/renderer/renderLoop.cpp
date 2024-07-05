@@ -1,6 +1,7 @@
 #include "renderLoop.h"
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -17,6 +18,8 @@ const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
 const std::vector<const char*> RenderLoop::DEVICE_EXTENSIONS = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
+
+std::vector<char> ReadFile(const std::string& fileName);
 
 
 RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName, const int32_t& width, const int32_t& height)
@@ -70,6 +73,7 @@ void RenderLoop::InitVulkan()
 	CreateLogicalDevice(physicalDevice);
 	CreateSwapChain(physicalDevice);
 	CreateImageViews();
+	CreateGraphicsPipeline();
 }
 
 void RenderLoop::CreateSurface()
@@ -268,6 +272,12 @@ void RenderLoop::CreateImageViews()
 		if(vkCreateImageView(_device, &createInfo, nullptr, &_swapChainImageViews[i]) != VK_SUCCESS)
 			throw std::runtime_error("Failed to create image views!");
 	}
+}
+
+void RenderLoop::CreateGraphicsPipeline()
+{
+	auto vertShaderCode = ReadFile("../source/renderer/shaders/vert.spv");
+	auto fragShaderCode = ReadFile("../source/renderer/shaders/frag.spv");
 }
 
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -566,4 +576,24 @@ VkResult RenderLoop::DestroyDebugUtilsMessengerEXT(const VkAllocationCallbacks* 
 		return VK_SUCCESS;
 	}
 	return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+
+
+
+static std::vector<char> ReadFile(const std::string& fileName)
+{
+	std::ifstream file(fileName, std::ios::ate | std::ios::binary);
+
+	if(!file.is_open())
+		throw std::runtime_error("Failed to open file!");
+
+	size_t fileSize = file.tellg();
+	std::vector<char> buffer(fileSize);
+
+	file.seekg(0);
+	file.read(buffer.data(), fileSize);
+
+	file.close();
+
+	return buffer;
 }
