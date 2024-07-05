@@ -47,6 +47,7 @@ extern "C"
 		VkExtent2D _swapChainExtent;
 		std::vector<VkImage> _swapChainImages;
 		std::vector<VkImageView> _swapChainImageViews;
+		VkPipelineLayout _pipelineLayout;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
