@@ -38,6 +38,7 @@ extern "C"
 
 		GLFWwindow* _window;
 		VkInstance _instance;
+		VkPhysicalDevice _physicalDevice;
 		VkDevice _device;
 		VkSurfaceKHR _surface;
 		VkQueue _graphicsQueue;
@@ -54,35 +55,43 @@ extern "C"
 		VkPipeline _graphicsPipeline;
 
 		VkCommandPool _commandPool;
-		VkCommandBuffer _commandBuffer;
+		std::vector<VkCommandBuffer> _commandBuffers;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
-		VkSemaphore _imageAvailableSemaphore;
-		VkSemaphore _renderFinishedSemaphore;
-		VkFence _inFlightFence;
+		uint32_t _currentFrame;
+		std::vector<VkSemaphore> _imageAvailableSemaphores;
+		std::vector<VkSemaphore> _renderFinishedSemaphores;
+		std::vector<VkFence> _inFlightFences;
+		bool _framebufferResized;
 
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
 		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
 		const static std::vector<const char*> DEVICE_EXTENSIONS;
+		const static uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 #pragma endregion
 
 #pragma region Initialization
 		void InitWindow();
 		void InitVulkan();
 
+		static void FrameBufferResizeCallback(GLFWwindow* window, int width, int height);
+
 		void CreateSurface();
 		void CreateInstance();
-		void CreateLogicalDevice(const VkPhysicalDevice& physicalDevice, const QueueFamilyIndices& indices);
-		void CreateSwapChain(const VkPhysicalDevice& physicalDevice, const QueueFamilyIndices& indices);
+		void CreateLogicalDevice(const QueueFamilyIndices& indices);
+		void CreateSwapChain(const QueueFamilyIndices& indices);
 		void CreateImageViews();
 		void CreateRenderPass();
 		void CreateGraphicsPipeline();
 		void CreateFramebuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
-		void CreateCommandBuffer();
+		void CreateCommandBuffers();
 		void CreateSyncObjects();
+
+		void RecreateSwapChain();
+
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
@@ -94,17 +103,23 @@ extern "C"
 		[[nodiscard]] VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
 		[[nodiscard]] VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode) const;
 
-		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device) const;
+		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& physicalDevice) const;
 		[[nodiscard]] SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device) const;
 		[[nodiscard]] int32_t RateDeviceSuitability(VkPhysicalDevice device) const;
 		[[nodiscard]] static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
-		[[nodiscard]] VkPhysicalDevice SelectPhysicalDevice() const;
+		void SelectPhysicalDevice();
 #pragma endregion
 
-		void RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex);
+#pragma region In Loop
+		void RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex) const;
 		void DrawFrame();
 		void MainLoop();
+#pragma endregion
+
+#pragma region Cleanup
+		void CleanupSwapChain() const;
 		void Cleanup() const;
+#pragma endregion
 
 #pragma region Extension Functions
 		VkResult CreateDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator);
