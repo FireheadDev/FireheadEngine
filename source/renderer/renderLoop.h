@@ -54,18 +54,20 @@ extern "C"
 		VkPipeline _graphicsPipeline;
 
 		VkCommandPool _commandPool;
-		VkCommandBuffer _commandBuffer;
+		std::vector<VkCommandBuffer> _commandBuffers;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
-		VkSemaphore _imageAvailableSemaphore;
-		VkSemaphore _renderFinishedSemaphore;
-		VkFence _inFlightFence;
+		uint32_t _currentFrame;
+		std::vector<VkSemaphore> _imageAvailableSemaphores;
+		std::vector<VkSemaphore> _renderFinishedSemaphores;
+		std::vector<VkFence> _inFlightFences;
 
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
 		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
 		const static std::vector<const char*> DEVICE_EXTENSIONS;
+		const static uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 #pragma endregion
 
 #pragma region Initialization
@@ -81,7 +83,7 @@ extern "C"
 		void CreateGraphicsPipeline();
 		void CreateFramebuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
-		void CreateCommandBuffer();
+		void CreateCommandBuffers();
 		void CreateSyncObjects();
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
