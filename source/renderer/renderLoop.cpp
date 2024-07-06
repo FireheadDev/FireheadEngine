@@ -96,6 +96,7 @@ void RenderLoop::InitVulkan()
 	CreateImageViews();
 	CreateRenderPass();
 	CreateGraphicsPipeline();
+	CreateFramebuffers();
 }
 
 void RenderLoop::CreateSurface()
@@ -472,6 +473,30 @@ void RenderLoop::CreateGraphicsPipeline()
 	vkDestroyShaderModule(_device, vertShaderModule, nullptr);
 }
 
+void RenderLoop::CreateFramebuffers()
+{
+	_swapChainFramebuffers.resize(_swapChainImageViews.size());
+
+	for(size_t i = 0; i < _swapChainImageViews.size(); ++i)
+	{
+		VkImageView attachments[] = {
+			_swapChainImageViews[i]
+		};
+
+		VkFramebufferCreateInfo framebufferInfo{};
+		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferInfo.renderPass = _renderPass;
+		framebufferInfo.attachmentCount = 1;
+		framebufferInfo.pAttachments = attachments;
+		framebufferInfo.width = _swapChainExtent.width;
+		framebufferInfo.height = _swapChainExtent.height;
+		framebufferInfo.layers = 1;
+
+		if(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]) != VK_SUCCESS)
+			throw std::runtime_error("Failed to create framebuffer!");
+	}
+}
+
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -751,6 +776,10 @@ void RenderLoop::Cleanup() const
 {
 	if (VALIDATION_LAYERS_ENABLED)
 		(void)DestroyDebugUtilsMessengerEXT(nullptr);
+	for(const auto framebuffer : _swapChainFramebuffers)
+	{
+		vkDestroyFramebuffer(_device, framebuffer, nullptr);
+	}
 	for (const auto imageView : _swapChainImageViews)
 	{
 		vkDestroyImageView(_device, imageView, nullptr);

@@ -47,6 +47,7 @@ extern "C"
 		VkExtent2D _swapChainExtent;
 		std::vector<VkImage> _swapChainImages;
 		std::vector<VkImageView> _swapChainImageViews;
+		std::vector<VkFramebuffer> _swapChainFramebuffers;
 
 		VkRenderPass _renderPass;
 		VkPipelineLayout _pipelineLayout;
@@ -71,6 +72,7 @@ extern "C"
 		void CreateImageViews();
 		void CreateRenderPass();
 		void CreateGraphicsPipeline();
+		void CreateFramebuffers();
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
