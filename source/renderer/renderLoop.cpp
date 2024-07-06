@@ -57,9 +57,13 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_swapChain = nullptr;
 	_swapChainImageFormat = {};
 	_swapChainExtent = {};
+
 	_renderPass = nullptr;
 	_pipelineLayout = nullptr;
 	_graphicsPipeline = nullptr;
+
+	_commandPool = nullptr;
+	_commandBuffer = nullptr;
 
 	_debugMessenger = nullptr;
 
@@ -91,12 +95,15 @@ void RenderLoop::InitVulkan()
 	SetupDebugMessenger();
 	CreateSurface();
 	const VkPhysicalDevice physicalDevice = SelectPhysicalDevice();
-	CreateLogicalDevice(physicalDevice);
-	CreateSwapChain(physicalDevice);
+	const QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(physicalDevice);
+	CreateLogicalDevice(physicalDevice, queueFamilyIndices);
+	CreateSwapChain(physicalDevice, queueFamilyIndices);
 	CreateImageViews();
 	CreateRenderPass();
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
+	CreateCommandPool(queueFamilyIndices);
+	CreateCommandBuffer();
 }
 
 void RenderLoop::CreateSurface()
@@ -157,9 +164,8 @@ void RenderLoop::CreateInstance()
 	}
 }
 
-void RenderLoop::CreateLogicalDevice(const VkPhysicalDevice& physicalDevice)
+void RenderLoop::CreateLogicalDevice(const VkPhysicalDevice& physicalDevice, const QueueFamilyIndices& indices)
 {
-	const QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
 	if (!indices.IsComplete())
 	{
 		throw std::runtime_error("Failed to find the necessary queue families!");
@@ -210,7 +216,7 @@ void RenderLoop::CreateLogicalDevice(const VkPhysicalDevice& physicalDevice)
 	vkGetDeviceQueue(_device, indices.presentFamily.value(), 0, &_presentationQueue);  // NOLINT(bugprone-unchecked-optional-access)
 }
 
-void RenderLoop::CreateSwapChain(const VkPhysicalDevice& physicalDevice)
+void RenderLoop::CreateSwapChain(const VkPhysicalDevice& physicalDevice, const QueueFamilyIndices& indices)
 {
 	const SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice);
 
@@ -232,7 +238,6 @@ void RenderLoop::CreateSwapChain(const VkPhysicalDevice& physicalDevice)
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	const QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
 	const std::vector<uint32_t> queueFamilyIndices = { indices.graphicsFamily.value(), indices.presentFamily.value() };  // NOLINT(bugprone-unchecked-optional-access)
 	if (indices.graphicsFamily != indices.presentFamily)
 	{
@@ -465,7 +470,7 @@ void RenderLoop::CreateGraphicsPipeline()
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineInfo.basePipelineIndex = -1;
 
-	if(vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_graphicsPipeline) != VK_SUCCESS)
+	if (vkCreateGraphicsPipelines(_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_graphicsPipeline) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create graphics pipeline!");
 
 
@@ -477,7 +482,7 @@ void RenderLoop::CreateFramebuffers()
 {
 	_swapChainFramebuffers.resize(_swapChainImageViews.size());
 
-	for(size_t i = 0; i < _swapChainImageViews.size(); ++i)
+	for (size_t i = 0; i < _swapChainImageViews.size(); ++i)
 	{
 		VkImageView attachments[] = {
 			_swapChainImageViews[i]
@@ -492,9 +497,32 @@ void RenderLoop::CreateFramebuffers()
 		framebufferInfo.height = _swapChainExtent.height;
 		framebufferInfo.layers = 1;
 
-		if(vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]) != VK_SUCCESS)
+		if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]) != VK_SUCCESS)
 			throw std::runtime_error("Failed to create framebuffer!");
 	}
+}
+
+void RenderLoop::CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices)
+{
+	VkCommandPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();  // NOLINT(bugprone-unchecked-optional-access)
+
+	if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create command pool!");
+}
+
+void RenderLoop::CreateCommandBuffer()
+{
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandPool = _commandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = 1;
+
+	if (vkAllocateCommandBuffers(_device, &allocInfo, &_commandBuffer) != VK_SUCCESS)
+		throw std::runtime_error("Failed to allocate command buffers!");
 }
 
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -764,6 +792,52 @@ VkPhysicalDevice RenderLoop::SelectPhysicalDevice() const
 	throw std::runtime_error("Failed to find a suitable GPU!");
 }
 
+void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex)
+{
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = 0;
+	beginInfo.pInheritanceInfo = nullptr;
+
+	if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+		throw std::runtime_error("Failed to begin recording command buffer!");
+
+
+	VkRenderPassBeginInfo renderPassInfo{};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassInfo.renderPass = _renderPass;
+	renderPassInfo.framebuffer = _swapChainFramebuffers[imageIndex];
+	renderPassInfo.renderArea.offset = { 0, 0 };
+	renderPassInfo.renderArea.extent = _swapChainExtent;
+
+	VkClearValue clearColor = { {{0.f, 0.f, 0.f, 1.f}} };
+	renderPassInfo.clearValueCount = 1;
+	renderPassInfo.pClearValues = &clearColor;
+
+	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _graphicsPipeline);
+
+	VkViewport viewport{};
+	viewport.x = 0.f;
+	viewport.y = 0.f;
+	viewport.width = static_cast<float>(_swapChainExtent.width);
+	viewport.height = static_cast<float>(_swapChainExtent.height);
+	viewport.minDepth = 0.f;
+	viewport.maxDepth = 1.f;
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	VkRect2D scissor{};
+	scissor.offset = { 0, 0 };
+	scissor.extent = _swapChainExtent;
+	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+	vkCmdEndRenderPass(commandBuffer);
+
+	if(vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+		throw std::runtime_error("Failed to record command buffer!");
+}
+
 void RenderLoop::MainLoop() const
 {
 	while (!glfwWindowShouldClose(_window))
@@ -776,7 +850,7 @@ void RenderLoop::Cleanup() const
 {
 	if (VALIDATION_LAYERS_ENABLED)
 		(void)DestroyDebugUtilsMessengerEXT(nullptr);
-	for(const auto framebuffer : _swapChainFramebuffers)
+	for (const auto framebuffer : _swapChainFramebuffers)
 	{
 		vkDestroyFramebuffer(_device, framebuffer, nullptr);
 	}
@@ -785,9 +859,13 @@ void RenderLoop::Cleanup() const
 		vkDestroyImageView(_device, imageView, nullptr);
 	}
 	vkDestroySwapchainKHR(_device, _swapChain, nullptr);
+
 	vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
 	vkDestroyRenderPass(_device, _renderPass, nullptr);
+
+	vkDestroyCommandPool(_device, _commandPool, nullptr);
+
 	vkDestroyDevice(_device, nullptr);
 	vkDestroySurfaceKHR(_instance, _surface, nullptr);
 	vkDestroyInstance(_instance, nullptr);

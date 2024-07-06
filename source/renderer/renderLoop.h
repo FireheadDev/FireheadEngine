@@ -53,6 +53,9 @@ extern "C"
 		VkPipelineLayout _pipelineLayout;
 		VkPipeline _graphicsPipeline;
 
+		VkCommandPool _commandPool;
+		VkCommandBuffer _commandBuffer;
+
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
 #pragma region Compile-Time Staic Members
@@ -67,12 +70,14 @@ extern "C"
 
 		void CreateSurface();
 		void CreateInstance();
-		void CreateLogicalDevice(const VkPhysicalDevice& physicalDevice);
-		void CreateSwapChain(const VkPhysicalDevice& physicalDevice);
+		void CreateLogicalDevice(const VkPhysicalDevice& physicalDevice, const QueueFamilyIndices& indices);
+		void CreateSwapChain(const VkPhysicalDevice& physicalDevice, const QueueFamilyIndices& indices);
 		void CreateImageViews();
 		void CreateRenderPass();
 		void CreateGraphicsPipeline();
 		void CreateFramebuffers();
+		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
+		void CreateCommandBuffer();
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
@@ -91,6 +96,7 @@ extern "C"
 		[[nodiscard]] VkPhysicalDevice SelectPhysicalDevice() const;
 #pragma endregion
 
+		void RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex);
 		void MainLoop() const;
 		void Cleanup() const;
 
