@@ -47,6 +47,8 @@ extern "C"
 		VkExtent2D _swapChainExtent;
 		std::vector<VkImage> _swapChainImages;
 		std::vector<VkImageView> _swapChainImageViews;
+
+		VkRenderPass _renderPass;
 		VkPipelineLayout _pipelineLayout;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
@@ -66,6 +68,7 @@ extern "C"
 		void CreateLogicalDevice(const VkPhysicalDevice& physicalDevice);
 		void CreateSwapChain(const VkPhysicalDevice& physicalDevice);
 		void CreateImageViews();
+		void CreateRenderPass();
 		void CreateGraphicsPipeline();
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
