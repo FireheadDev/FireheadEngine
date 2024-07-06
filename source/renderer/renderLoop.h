@@ -50,6 +50,7 @@ extern "C"
 
 		VkRenderPass _renderPass;
 		VkPipelineLayout _pipelineLayout;
+		VkPipeline _graphicsPipeline;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
