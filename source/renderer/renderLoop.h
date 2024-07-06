@@ -58,6 +58,10 @@ extern "C"
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
+		VkSemaphore _imageAvailableSemaphore;
+		VkSemaphore _renderFinishedSemaphore;
+		VkFence _inFlightFence;
+
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
 		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
@@ -78,6 +82,7 @@ extern "C"
 		void CreateFramebuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
 		void CreateCommandBuffer();
+		void CreateSyncObjects();
 
 		static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 		void SetupDebugMessenger();
@@ -97,7 +102,8 @@ extern "C"
 #pragma endregion
 
 		void RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex);
-		void MainLoop() const;
+		void DrawFrame();
+		void MainLoop();
 		void Cleanup() const;
 
 #pragma region Extension Functions
