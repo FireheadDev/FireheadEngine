@@ -18,6 +18,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 //#include <GLFW/glfw3native.h>
 
+#include "Vertex.h"
 #include "../core/FHEMacros.h"
 
 struct SwapChainSupportDetails;
@@ -57,6 +58,8 @@ extern "C"
 		VkCommandPool _commandPool;
 		std::vector<VkCommandBuffer> _commandBuffers;
 
+		VkBuffer _vertexBuffer;
+
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
 		uint32_t _currentFrame;
@@ -64,6 +67,11 @@ extern "C"
 		std::vector<VkSemaphore> _renderFinishedSemaphores;
 		std::vector<VkFence> _inFlightFences;
 		bool _framebufferResized;
+		const std::vector<Vertex> _vertices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+			{{0.f, -0.5f}, {1.f, 0.f, 0.f}},
+			{{0.5f, 0.5f}, {0.f, 1.f, 0.f}},
+			{{-0.5f, 0.5f}, {0.f, 0.f, 1.f}}
+		};
 
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
@@ -87,6 +95,7 @@ extern "C"
 		void CreateGraphicsPipeline();
 		void CreateFramebuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
+		void CreateVertexBuffer();
 		void CreateCommandBuffers();
 		void CreateSyncObjects();
 
