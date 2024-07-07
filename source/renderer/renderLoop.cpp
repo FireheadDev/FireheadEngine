@@ -532,7 +532,7 @@ void RenderLoop::CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices)
 	VkCommandPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value(); 
+	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
 	if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create command pool!");
@@ -540,35 +540,12 @@ void RenderLoop::CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices)
 
 void RenderLoop::CreateVertexBuffer()
 {
-	VkBufferCreateInfo bufferInfo{};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = sizeof(_vertices[0]) * _vertices.size();
-	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
-	std::vector<uint32_t> queueFamilyIndices{};
-	GetUniqueQueueFamilyIndices(FindQueueFamilies(_physicalDevice), queueFamilyIndices);
-	bufferInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
-	bufferInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+	VkDeviceSize bufferSize = sizeof(_vertices[0]) * _vertices.size();
+	CreateBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _vertexBuffer, _vertexBufferMemory);
 
-	if (vkCreateBuffer(_device, &bufferInfo, nullptr, &_vertexBuffer) != VK_SUCCESS)
-		throw std::runtime_error("Failed to create vertex buffer!");
-
-
-	VkMemoryRequirements memoryRequirements;
-	vkGetBufferMemoryRequirements(_device, _vertexBuffer, &memoryRequirements);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memoryRequirements.size;
-	allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-	if (vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory) != VK_SUCCESS)
-		throw std::runtime_error("Failed to allocate vertex buffer memory!");
-
-	vkBindBufferMemory(_device, _vertexBuffer, _vertexBufferMemory, 0);
 	void* data;
-	vkMapMemory(_device, _vertexBufferMemory, 0, bufferInfo.size, 0, &data);
-	memcpy(data, _vertices.data(), bufferInfo.size);
+	vkMapMemory(_device, _vertexBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, _vertices.data(), bufferSize);
 	vkUnmapMemory(_device, _vertexBufferMemory);
 }
 
@@ -708,6 +685,8 @@ bool RenderLoop::ValidateLayerSupport(const std::vector<VkLayerProperties>& avai
 	return true;
 }
 
+
+
 VkSurfaceFormatKHR RenderLoop::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
 {
 	// TODO: Add ranking in case of failure to find preferred format
@@ -751,6 +730,33 @@ VkExtent2D RenderLoop::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabili
 	return actualExtents;
 }
 
+SwapChainSupportDetails RenderLoop::QuerySwapChainSupport(const VkPhysicalDevice device) const
+{
+	SwapChainSupportDetails details;
+
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, _surface, &details.capabilities);
+
+	uint32_t formatCount;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface, &formatCount, nullptr);
+	if (formatCount != 0)
+	{
+		details.formats.resize(formatCount);
+		vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface, &formatCount, details.formats.data());
+	}
+
+	uint32_t presentModeCount;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device, _surface, &presentModeCount, nullptr);
+	if (presentModeCount != 0)
+	{
+		details.presentModes.resize(presentModeCount);
+		vkGetPhysicalDeviceSurfacePresentModesKHR(device, _surface, &presentModeCount, details.presentModes.data());
+	}
+
+	return details;
+}
+
+
+
 VkShaderModule RenderLoop::CreateShaderModule(const std::vector<char>& shaderCode) const
 {
 	VkShaderModuleCreateInfo createInfo{};
@@ -764,6 +770,38 @@ VkShaderModule RenderLoop::CreateShaderModule(const std::vector<char>& shaderCod
 
 	return shaderModule;
 }
+
+void RenderLoop::CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const
+{
+	VkBufferCreateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
+	// May need to change if not all buffers need to be concurrent
+	bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+	std::vector<uint32_t> queueFamilyIndices{};
+	GetUniqueQueueFamilyIndices(FindQueueFamilies(_physicalDevice), queueFamilyIndices);
+	bufferInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
+	bufferInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+
+	if (vkCreateBuffer(_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create buffer!");
+
+
+	VkMemoryRequirements memoryRequirements;
+	vkGetBufferMemoryRequirements(_device, buffer, &memoryRequirements);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memoryRequirements.size;
+	allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits, properties);
+
+	if (vkAllocateMemory(_device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+		throw std::runtime_error("Failed to allocate buffer memory!");
+
+	vkBindBufferMemory(_device, buffer, bufferMemory, 0);
+}
+
 
 QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice& physicalDevice) const
 {
@@ -799,29 +837,13 @@ QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice& physica
 	return indices;
 }
 
-SwapChainSupportDetails RenderLoop::QuerySwapChainSupport(const VkPhysicalDevice device) const
+void RenderLoop::GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices)
 {
-	SwapChainSupportDetails details;
-
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, _surface, &details.capabilities);
-
-	uint32_t formatCount;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface, &formatCount, nullptr);
-	if (formatCount != 0)
+	queueFamilyIndices = { indices.transferFamily.value(), indices.graphicsFamily.value() };
+	if (indices.graphicsFamily.value() != indices.presentFamily.value())
 	{
-		details.formats.resize(formatCount);
-		vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface, &formatCount, details.formats.data());
+		queueFamilyIndices.push_back(indices.presentFamily.value());
 	}
-
-	uint32_t presentModeCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(device, _surface, &presentModeCount, nullptr);
-	if (presentModeCount != 0)
-	{
-		details.presentModes.resize(presentModeCount);
-		vkGetPhysicalDeviceSurfacePresentModesKHR(device, _surface, &presentModeCount, details.presentModes.data());
-	}
-
-	return details;
 }
 
 int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device) const
@@ -916,14 +938,8 @@ uint32_t RenderLoop::FindMemoryType(const uint32_t& typeFilter, const VkMemoryPr
 	throw std::runtime_error("Failed to find suitable memory type!");
 }
 
-void RenderLoop::GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices)
-{
-	queueFamilyIndices = {indices.transferFamily.value(), indices.graphicsFamily.value() };
-	if (indices.graphicsFamily.value() != indices.presentFamily.value())
-	{
-		queueFamilyIndices.push_back(indices.presentFamily.value());
-	}
-}
+
+
 
 void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex) const
 {
