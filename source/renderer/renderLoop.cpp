@@ -67,6 +67,7 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_commandPool = nullptr;
 
 	_vertexBuffer = nullptr;
+	_vertexBufferMemory = nullptr;
 
 	_debugMessenger = nullptr;
 
@@ -551,6 +552,24 @@ void RenderLoop::CreateVertexBuffer()
 
 	if(vkCreateBuffer(_device, &bufferInfo, nullptr, &_vertexBuffer) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create vertex buffer!");
+
+
+	VkMemoryRequirements memoryRequirements;
+	vkGetBufferMemoryRequirements(_device, _vertexBuffer, &memoryRequirements);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memoryRequirements.size;
+	allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	if(vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory) != VK_SUCCESS)
+		throw std::runtime_error("Failed to allocate vertex buffer memory!");
+
+	vkBindBufferMemory(_device, _vertexBuffer, _vertexBufferMemory, 0);
+	void* data;
+	vkMapMemory(_device, _vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+	memcpy(data, _vertices.data(), bufferInfo.size);
+	vkUnmapMemory(_device, _vertexBufferMemory);
 }
 
 void RenderLoop::CreateCommandBuffers()
@@ -881,6 +900,20 @@ void RenderLoop::SelectPhysicalDevice()
 	throw std::runtime_error("Failed to find a suitable GPU!");
 }
 
+uint32_t RenderLoop::FindMemoryType(const uint32_t& typeFilter, const VkMemoryPropertyFlags& properties) const
+{
+	VkPhysicalDeviceMemoryProperties memoryProperties;
+	vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &memoryProperties);
+
+	for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
+	{
+		if((typeFilter & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+			return i;
+	}
+
+	throw std::runtime_error("Failed to find suitable memory type!");
+}
+
 void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex) const
 {
 	VkCommandBufferBeginInfo beginInfo{};
@@ -919,7 +952,11 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 	scissor.extent = _swapChainExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+	VkBuffer vertexBuffers[] = {_vertexBuffer};
+	VkDeviceSize offsets[] = {0};
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+	vkCmdDraw(commandBuffer, static_cast<uint32_t>(_vertices.size()), 1, 0, 0);
 
 	vkCmdEndRenderPass(commandBuffer);
 
@@ -1026,6 +1063,7 @@ void RenderLoop::Cleanup() const
 	CleanupSwapChain();
 
 	vkDestroyBuffer(_device, _vertexBuffer, nullptr);
+	vkFreeMemory(_device, _vertexBufferMemory, nullptr);
 
 	vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
