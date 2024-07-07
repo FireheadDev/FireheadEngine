@@ -110,18 +110,21 @@ extern "C"
 		static void GetExtensions(std::vector<const char*>& extensions);
 		static void GetLayers(std::vector<VkLayerProperties>& layers);
 		[[nodiscard]] static bool ValidateLayerSupport(const std::vector<VkLayerProperties>& availableLayers);
+
 		[[nodiscard]] static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 		[[nodiscard]] static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 		[[nodiscard]] VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
+		[[nodiscard]] SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device) const;
+
 		[[nodiscard]] VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode) const;
+		void CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const;
 
 		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& physicalDevice) const;
-		[[nodiscard]] SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device) const;
+		static void GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices);
 		[[nodiscard]] int32_t RateDeviceSuitability(VkPhysicalDevice device) const;
 		[[nodiscard]] static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 		void SelectPhysicalDevice();
 		[[nodiscard]] uint32_t FindMemoryType(const uint32_t& typeFilter, const VkMemoryPropertyFlags& properties) const;
-		static void GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices);
 #pragma endregion
 
 #pragma region In Loop
