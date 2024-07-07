@@ -9,6 +9,7 @@
 
 #include "QueueFamilyIndices.h"
 #include "SwapChainSupportDetails.h"
+#include "Vertex.h"
 #include "../logger/Logger.h"
 
 const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
@@ -65,6 +66,8 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 
 	_commandPool = nullptr;
 
+	_vertexBuffer = nullptr;
+
 	_debugMessenger = nullptr;
 
 	_currentFrame = 0;
@@ -108,6 +111,7 @@ void RenderLoop::InitVulkan()
 	CreateGraphicsPipeline();
 	CreateFramebuffers();
 	CreateCommandPool(queueFamilyIndices);
+	CreateVertexBuffer();
 	CreateCommandBuffers();
 	CreateSyncObjects();
 }
@@ -387,13 +391,15 @@ void RenderLoop::CreateGraphicsPipeline()
 	dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
 	dynamicStateInfo.pDynamicStates = dynamicStates.data();
-
+	
+	auto bindingDescription = Vertex::GetBindingDescription();
+	auto attributeDescriptions = Vertex::GetAttributeDescription();
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
 	inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -533,6 +539,18 @@ void RenderLoop::CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices)
 
 	if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create command pool!");
+}
+
+void RenderLoop::CreateVertexBuffer()
+{
+	VkBufferCreateInfo bufferInfo{};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = sizeof(_vertices[0]) * _vertices.size();
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if(vkCreateBuffer(_device, &bufferInfo, nullptr, &_vertexBuffer) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create vertex buffer!");
 }
 
 void RenderLoop::CreateCommandBuffers()
@@ -1006,6 +1024,8 @@ void RenderLoop::Cleanup() const
 	}
 
 	CleanupSwapChain();
+
+	vkDestroyBuffer(_device, _vertexBuffer, nullptr);
 
 	vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);
