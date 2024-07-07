@@ -1,3 +1,4 @@
+// ReSharper disable CppClangTidyBugproneUncheckedOptionalAccess
 #include "renderLoop.h"
 
 #include <algorithm>
@@ -56,6 +57,8 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_surface = nullptr;
 	_graphicsQueue = nullptr;
 	_presentationQueue = nullptr;
+	_transferQueue = nullptr;
+
 	_swapChain = nullptr;
 	_swapChainImageFormat = {};
 	_swapChainExtent = {};
@@ -189,7 +192,7 @@ void RenderLoop::CreateLogicalDevice(const QueueFamilyIndices& indices)
 	}
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	const std::set uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };  // NOLINT(bugprone-unchecked-optional-access)
+	const std::set uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value(), indices.transferFamily.value() };
 
 	float queuePriority = 1.f;
 	for (uint32_t queueFamily : uniqueQueueFamilies)
@@ -229,17 +232,18 @@ void RenderLoop::CreateLogicalDevice(const QueueFamilyIndices& indices)
 		throw std::runtime_error("Failed to create logical device!");
 	}
 
-	vkGetDeviceQueue(_device, indices.graphicsFamily.value(), 0, &_graphicsQueue);  // NOLINT(bugprone-unchecked-optional-access)
-	vkGetDeviceQueue(_device, indices.presentFamily.value(), 0, &_presentationQueue);  // NOLINT(bugprone-unchecked-optional-access)
+	vkGetDeviceQueue(_device, indices.graphicsFamily.value(), 0, &_graphicsQueue);
+	vkGetDeviceQueue(_device, indices.presentFamily.value(), 0, &_presentationQueue);
+	vkGetDeviceQueue(_device, indices.transferFamily.value(), 0, &_transferQueue);
 }
 
 void RenderLoop::CreateSwapChain(const QueueFamilyIndices& indices)
 {
 	const SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(_physicalDevice);
 
-	VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
-	VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
-	VkExtent2D extent = ChooseSwapExtent(swapChainSupport.capabilities);
+	const VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
+	const VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
+	const VkExtent2D extent = ChooseSwapExtent(swapChainSupport.capabilities);
 	// Only requesting the minimum image count can lead to waiting on the driver to complete operations, so an additional image is requested here
 	uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
@@ -255,19 +259,11 @@ void RenderLoop::CreateSwapChain(const QueueFamilyIndices& indices)
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	const std::vector<uint32_t> queueFamilyIndices = { indices.graphicsFamily.value(), indices.presentFamily.value() };  // NOLINT(bugprone-unchecked-optional-access)
-	if (indices.graphicsFamily != indices.presentFamily)
-	{
-		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		createInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
-		createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-	}
-	else
-	{
-		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		createInfo.queueFamilyIndexCount = 0;
-		createInfo.pQueueFamilyIndices = nullptr;
-	}
+	std::vector<uint32_t> queueFamilyIndices;
+	GetUniqueQueueFamilyIndices(indices, queueFamilyIndices);
+	createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+	createInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
+	createInfo.pQueueFamilyIndices = queueFamilyIndices.data();
 
 	createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
 	// Allows for using alpha to blend with other windows in the window system??? May have to mess with this in a spike project some time.
@@ -392,7 +388,7 @@ void RenderLoop::CreateGraphicsPipeline()
 	dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
 	dynamicStateInfo.pDynamicStates = dynamicStates.data();
-	
+
 	auto bindingDescription = Vertex::GetBindingDescription();
 	auto attributeDescriptions = Vertex::GetAttributeDescription();
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
@@ -536,7 +532,7 @@ void RenderLoop::CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices)
 	VkCommandPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();  // NOLINT(bugprone-unchecked-optional-access)
+	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value(); 
 
 	if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create command pool!");
@@ -548,9 +544,13 @@ void RenderLoop::CreateVertexBuffer()
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	bufferInfo.size = sizeof(_vertices[0]) * _vertices.size();
 	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+	std::vector<uint32_t> queueFamilyIndices{};
+	GetUniqueQueueFamilyIndices(FindQueueFamilies(_physicalDevice), queueFamilyIndices);
+	bufferInfo.queueFamilyIndexCount = static_cast<uint32_t>(queueFamilyIndices.size());
+	bufferInfo.pQueueFamilyIndices = queueFamilyIndices.data();
 
-	if(vkCreateBuffer(_device, &bufferInfo, nullptr, &_vertexBuffer) != VK_SUCCESS)
+	if (vkCreateBuffer(_device, &bufferInfo, nullptr, &_vertexBuffer) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create vertex buffer!");
 
 
@@ -562,7 +562,7 @@ void RenderLoop::CreateVertexBuffer()
 	allocInfo.allocationSize = memoryRequirements.size;
 	allocInfo.memoryTypeIndex = FindMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-	if(vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory) != VK_SUCCESS)
+	if (vkAllocateMemory(_device, &allocInfo, nullptr, &_vertexBufferMemory) != VK_SUCCESS)
 		throw std::runtime_error("Failed to allocate vertex buffer memory!");
 
 	vkBindBufferMemory(_device, _vertexBuffer, _vertexBufferMemory, 0);
@@ -611,9 +611,9 @@ void RenderLoop::RecreateSwapChain()
 {
 	int width = 0, height = 0;
 	glfwGetFramebufferSize(_window, &width, &height);
-	while(width == 0 || height == 0)
+	while (width == 0 || height == 0)
 	{
-		if(glfwWindowShouldClose(_window))
+		if (glfwWindowShouldClose(_window))
 			return;
 
 		glfwGetFramebufferSize(_window, &width, &height);
@@ -779,6 +779,8 @@ QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice& physica
 	{
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
 			indices.graphicsFamily = i;
+		else if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
+			indices.transferFamily = i;
 
 		VkBool32 presentationSupport = false;
 		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, _surface, &presentationSupport);
@@ -905,13 +907,22 @@ uint32_t RenderLoop::FindMemoryType(const uint32_t& typeFilter, const VkMemoryPr
 	VkPhysicalDeviceMemoryProperties memoryProperties;
 	vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &memoryProperties);
 
-	for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
+	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
 	{
-		if((typeFilter & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+		if ((typeFilter & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
 			return i;
 	}
 
 	throw std::runtime_error("Failed to find suitable memory type!");
+}
+
+void RenderLoop::GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices)
+{
+	queueFamilyIndices = {indices.transferFamily.value(), indices.graphicsFamily.value() };
+	if (indices.graphicsFamily.value() != indices.presentFamily.value())
+	{
+		queueFamilyIndices.push_back(indices.presentFamily.value());
+	}
 }
 
 void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex) const
@@ -952,8 +963,8 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 	scissor.extent = _swapChainExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	VkBuffer vertexBuffers[] = {_vertexBuffer};
-	VkDeviceSize offsets[] = {0};
+	VkBuffer vertexBuffers[] = { _vertexBuffer };
+	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
 	vkCmdDraw(commandBuffer, static_cast<uint32_t>(_vertices.size()), 1, 0, 0);
@@ -971,14 +982,14 @@ void RenderLoop::DrawFrame()
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(_device, _swapChain, UINT64_MAX, _imageAvailableSemaphores[_currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-	if(result == VK_ERROR_OUT_OF_DATE_KHR)
+	if (result == VK_ERROR_OUT_OF_DATE_KHR)
 	{
 		RecreateSwapChain();
 		return;
 	}
-	if(result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+	if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
 		throw std::runtime_error("Failed to acquire swap chain image!");
-	
+
 	vkResetFences(_device, 1, &_inFlightFences[_currentFrame]);
 	vkResetCommandBuffer(_commandBuffers[_currentFrame], 0);
 	RecordCommandBuffer(_commandBuffers[_currentFrame], imageIndex);
@@ -1013,12 +1024,12 @@ void RenderLoop::DrawFrame()
 	presentInfo.pResults = nullptr;
 
 	result = vkQueuePresentKHR(_presentationQueue, &presentInfo);
-	if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _framebufferResized)
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _framebufferResized)
 	{
 		_framebufferResized = false;
 		RecreateSwapChain();
 	}
-	else if(result != VK_SUCCESS)
+	else if (result != VK_SUCCESS)
 		throw std::runtime_error("Failed to present swap chain image!");
 
 	_currentFrame = (_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;

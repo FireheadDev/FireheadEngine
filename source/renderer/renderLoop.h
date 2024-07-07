@@ -44,6 +44,8 @@ extern "C"
 		VkSurfaceKHR _surface;
 		VkQueue _graphicsQueue;
 		VkQueue _presentationQueue;
+		VkQueue _transferQueue;
+
 		VkSwapchainKHR _swapChain;
 		VkFormat _swapChainImageFormat;
 		VkExtent2D _swapChainExtent;
@@ -119,6 +121,7 @@ extern "C"
 		[[nodiscard]] static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 		void SelectPhysicalDevice();
 		[[nodiscard]] uint32_t FindMemoryType(const uint32_t& typeFilter, const VkMemoryPropertyFlags& properties) const;
+		static void GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices);
 #pragma endregion
 
 #pragma region In Loop
