@@ -59,6 +59,7 @@ extern "C"
 		std::vector<VkCommandBuffer> _commandBuffers;
 
 		VkBuffer _vertexBuffer;
+		VkDeviceMemory _vertexBufferMemory;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
@@ -68,9 +69,9 @@ extern "C"
 		std::vector<VkFence> _inFlightFences;
 		bool _framebufferResized;
 		const std::vector<Vertex> _vertices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-			{{0.f, -0.5f}, {1.f, 0.f, 0.f}},
-			{{0.5f, 0.5f}, {0.f, 1.f, 0.f}},
-			{{-0.5f, 0.5f}, {0.f, 0.f, 1.f}}
+			{{0.f, -0.5f}, {0.f, 0.f, 1.f}},
+			{{0.5f, 0.5f}, {1.f, 1.f, 1.f}},
+			{{-0.5f, 0.5f}, {0.5f, 1.f, 0.f}}
 		};
 
 #pragma region Compile-Time Staic Members
@@ -117,6 +118,7 @@ extern "C"
 		[[nodiscard]] int32_t RateDeviceSuitability(VkPhysicalDevice device) const;
 		[[nodiscard]] static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 		void SelectPhysicalDevice();
+		[[nodiscard]] uint32_t FindMemoryType(const uint32_t& typeFilter, const VkMemoryPropertyFlags& properties) const;
 #pragma endregion
 
 #pragma region In Loop
