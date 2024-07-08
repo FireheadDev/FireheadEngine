@@ -58,6 +58,7 @@ extern "C"
 		VkPipeline _graphicsPipeline;
 
 		VkCommandPool _commandPool;
+		VkCommandPool _transferCommandPool;
 		std::vector<VkCommandBuffer> _commandBuffers;
 
 		VkBuffer _vertexBuffer;
@@ -118,6 +119,7 @@ extern "C"
 
 		[[nodiscard]] VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode) const;
 		void CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const;
+		void CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer, const VkDeviceSize& size) const;
 
 		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& physicalDevice) const;
 		static void GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices);

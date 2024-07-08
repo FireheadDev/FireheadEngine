@@ -68,6 +68,7 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_graphicsPipeline = nullptr;
 
 	_commandPool = nullptr;
+	_transferCommandPool = nullptr;
 
 	_vertexBuffer = nullptr;
 	_vertexBufferMemory = nullptr;
@@ -536,17 +537,33 @@ void RenderLoop::CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices)
 
 	if (vkCreateCommandPool(_device, &poolInfo, nullptr, &_commandPool) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create command pool!");
+
+	poolInfo.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
+	poolInfo.flags = poolInfo.flags | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+
+	if(vkCreateCommandPool(_device, &poolInfo, nullptr, &_transferCommandPool) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create transfer command pool!");
 }
 
 void RenderLoop::CreateVertexBuffer()
 {
-	VkDeviceSize bufferSize = sizeof(_vertices[0]) * _vertices.size();
-	CreateBuffer(bufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _vertexBuffer, _vertexBufferMemory);
+	const VkDeviceSize bufferSize = sizeof(_vertices[0]) * _vertices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
 
 	void* data;
-	vkMapMemory(_device, _vertexBufferMemory, 0, bufferSize, 0, &data);
+	vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
 	memcpy(data, _vertices.data(), bufferSize);
-	vkUnmapMemory(_device, _vertexBufferMemory);
+	vkUnmapMemory(_device, stagingBufferMemory);
+
+	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _vertexBuffer, _vertexBufferMemory);
+
+	CopyBuffer(stagingBuffer, _vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(_device, stagingBuffer, nullptr);
+	vkFreeMemory(_device, stagingBufferMemory, nullptr);
 }
 
 void RenderLoop::CreateCommandBuffers()
@@ -800,6 +817,41 @@ void RenderLoop::CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags
 		throw std::runtime_error("Failed to allocate buffer memory!");
 
 	vkBindBufferMemory(_device, buffer, bufferMemory, 0);
+}
+
+void RenderLoop::CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer, const VkDeviceSize& size) const
+{
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = _transferCommandPool;
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(_device, &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	VkBufferCopy copyRegion{};
+	copyRegion.srcOffset = 0;
+	copyRegion.dstOffset = 0;
+	copyRegion.size = size;
+	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(_transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(_transferQueue);
+
+	vkFreeCommandBuffers(_device, _transferCommandPool, 1, &commandBuffer);
 }
 
 
@@ -1097,6 +1149,7 @@ void RenderLoop::Cleanup() const
 	vkDestroyRenderPass(_device, _renderPass, nullptr);
 
 	vkDestroyCommandPool(_device, _commandPool, nullptr);
+	vkDestroyCommandPool(_device, _transferCommandPool, nullptr);
 
 	vkDestroyDevice(_device, nullptr);
 	vkDestroySurfaceKHR(_instance, _surface, nullptr);
