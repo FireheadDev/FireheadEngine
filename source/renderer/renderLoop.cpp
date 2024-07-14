@@ -72,6 +72,8 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 
 	_vertexBuffer = nullptr;
 	_vertexBufferMemory = nullptr;
+	_indexBuffer = nullptr;
+	_indexBufferMemory = nullptr;
 
 	_debugMessenger = nullptr;
 
@@ -117,6 +119,7 @@ void RenderLoop::InitVulkan()
 	CreateFramebuffers();
 	CreateCommandPool(queueFamilyIndices);
 	CreateVertexBuffer();
+	CreateIndexBuffer();
 	CreateCommandBuffers();
 	CreateSyncObjects();
 }
@@ -561,6 +564,27 @@ void RenderLoop::CreateVertexBuffer()
 	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _vertexBuffer, _vertexBufferMemory);
 
 	CopyBuffer(stagingBuffer, _vertexBuffer, bufferSize);
+
+	vkDestroyBuffer(_device, stagingBuffer, nullptr);
+	vkFreeMemory(_device, stagingBufferMemory, nullptr);
+}
+
+void RenderLoop::CreateIndexBuffer()
+{
+	const VkDeviceSize bufferSize = sizeof(_indices[0]) * _indices.size();
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, _indices.data(), bufferSize);
+	vkUnmapMemory(_device, stagingBufferMemory);
+
+	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _indexBuffer, _indexBufferMemory);
+
+	CopyBuffer(stagingBuffer, _indexBuffer, bufferSize);
 
 	vkDestroyBuffer(_device, stagingBuffer, nullptr);
 	vkFreeMemory(_device, stagingBufferMemory, nullptr);
@@ -1011,7 +1035,7 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 	renderPassInfo.renderArea.offset = { 0, 0 };
 	renderPassInfo.renderArea.extent = _swapChainExtent;
 
-	VkClearValue clearColor = { {{0.f, 0.f, 0.f, 1.f}} };
+	const VkClearValue clearColor = { {{0.f, 0.f, 0.f, 1.f}} };
 	renderPassInfo.clearValueCount = 1;
 	renderPassInfo.pClearValues = &clearColor;
 
@@ -1031,11 +1055,12 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 	scissor.extent = _swapChainExtent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-	VkBuffer vertexBuffers[] = { _vertexBuffer };
-	VkDeviceSize offsets[] = { 0 };
+	const VkBuffer vertexBuffers[] = { _vertexBuffer };
+	const VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	vkCmdBindIndexBuffer(commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-	vkCmdDraw(commandBuffer, static_cast<uint32_t>(_vertices.size()), 1, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(commandBuffer);
 
@@ -1143,6 +1168,8 @@ void RenderLoop::Cleanup() const
 
 	vkDestroyBuffer(_device, _vertexBuffer, nullptr);
 	vkFreeMemory(_device, _vertexBufferMemory, nullptr);
+	vkDestroyBuffer(_device, _indexBuffer, nullptr);
+	vkFreeMemory(_device, _indexBufferMemory, nullptr);
 
 	vkDestroyPipeline(_device, _graphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(_device, _pipelineLayout, nullptr);

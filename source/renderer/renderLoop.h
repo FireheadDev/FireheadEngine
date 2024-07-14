@@ -63,6 +63,8 @@ extern "C"
 
 		VkBuffer _vertexBuffer;
 		VkDeviceMemory _vertexBufferMemory;
+		VkBuffer _indexBuffer;
+		VkDeviceMemory _indexBufferMemory;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
@@ -71,10 +73,15 @@ extern "C"
 		std::vector<VkSemaphore> _renderFinishedSemaphores;
 		std::vector<VkFence> _inFlightFences;
 		bool _framebufferResized;
+
 		const std::vector<Vertex> _vertices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-			{{0.f, -0.5f}, {0.f, 0.f, 1.f}},
-			{{0.5f, 0.5f}, {1.f, 1.f, 1.f}},
-			{{-0.5f, 0.5f}, {0.5f, 1.f, 0.f}}
+			{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}},
+			{{0.5f, -0.5f}, {0.f, 1.f, 0.f}},
+			{{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
+			{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}},
+		};
+		const std::vector<uint16_t> _indices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+			0, 1, 2, 2, 3, 0
 		};
 
 #pragma region Compile-Time Staic Members
@@ -100,6 +107,7 @@ extern "C"
 		void CreateFramebuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
 		void CreateVertexBuffer();
+		void CreateIndexBuffer();
 		void CreateCommandBuffers();
 		void CreateSyncObjects();
 
