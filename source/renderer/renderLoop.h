@@ -52,6 +52,10 @@ extern "C"
 		std::vector<VkImage> _swapChainImages;
 		std::vector<VkImageView> _swapChainImageViews;
 		std::vector<VkFramebuffer> _swapChainFramebuffers;
+		
+		VkDescriptorSetLayout _descriptorSetLayout;
+		VkDescriptorPool _descriptorPool;
+		std::vector<VkDescriptorSet> _descriptorSets;
 
 		VkRenderPass _renderPass;
 		VkPipelineLayout _pipelineLayout;
@@ -65,6 +69,10 @@ extern "C"
 		VkDeviceMemory _vertexBufferMemory;
 		VkBuffer _indexBuffer;
 		VkDeviceMemory _indexBufferMemory;
+
+		std::vector<VkBuffer> _uniformBuffers;
+		std::vector<VkDeviceMemory> _uniformBuffersMemory;
+		std::vector<void*> _uniformBuffersMapped;
 
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
@@ -103,11 +111,15 @@ extern "C"
 		void CreateSwapChain(const QueueFamilyIndices& indices);
 		void CreateImageViews();
 		void CreateRenderPass();
+		void CreateDescriptorSetLayout();
 		void CreateGraphicsPipeline();
 		void CreateFramebuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
+		void CreateUniformBuffers();
+		void CreateDescriptorPool();
+		void CreateDescriptorSets();
 		void CreateCommandBuffers();
 		void CreateSyncObjects();
 
@@ -140,6 +152,7 @@ extern "C"
 #pragma region In Loop
 		void RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex) const;
 		void DrawFrame();
+		void UpdateUniformBuffer(const uint32_t& currentImage) const;
 		void MainLoop();
 #pragma endregion
 
