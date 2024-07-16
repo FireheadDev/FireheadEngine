@@ -87,7 +87,7 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_debugMessenger = nullptr;
 
 	_currentFrame = 0;
-	_framebufferResized = false;
+	_frameBufferResized = false;
 
 	printf("Rendering Loop created\n");
 }
@@ -126,7 +126,7 @@ void RenderLoop::InitVulkan()
 	CreateRenderPass();
 	CreateDescriptorSetLayout();
 	CreateGraphicsPipeline();
-	CreateFramebuffers();
+	CreateFrameBuffers();
 	CreateCommandPool(queueFamilyIndices);
 	CreateVertexBuffer();
 	CreateIndexBuffer();
@@ -140,7 +140,7 @@ void RenderLoop::InitVulkan()
 void RenderLoop::FrameBufferResizeCallback(GLFWwindow* window, int width, int height)
 {
 	const auto app = static_cast<RenderLoop*>(glfwGetWindowUserPointer(window));
-	app->_framebufferResized = true;
+	app->_frameBufferResized = true;
 }
 
 void RenderLoop::CreateSurface()
@@ -538,9 +538,9 @@ void RenderLoop::CreateGraphicsPipeline()
 	vkDestroyShaderModule(_device, vertShaderModule, nullptr);
 }
 
-void RenderLoop::CreateFramebuffers()
+void RenderLoop::CreateFrameBuffers()
 {
-	_swapChainFramebuffers.resize(_swapChainImageViews.size());
+	_swapChainFrameBuffers.resize(_swapChainImageViews.size());
 
 	for (size_t i = 0; i < _swapChainImageViews.size(); ++i)
 	{
@@ -557,7 +557,7 @@ void RenderLoop::CreateFramebuffers()
 		framebufferInfo.height = _swapChainExtent.height;
 		framebufferInfo.layers = 1;
 
-		if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFramebuffers[i]) != VK_SUCCESS)
+		if (vkCreateFramebuffer(_device, &framebufferInfo, nullptr, &_swapChainFrameBuffers[i]) != VK_SUCCESS)
 			throw std::runtime_error("Failed to create framebuffer!");
 	}
 }
@@ -746,7 +746,7 @@ void RenderLoop::RecreateSwapChain()
 	QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(_physicalDevice);
 	CreateSwapChain(queueFamilyIndices);
 	CreateImageViews();
-	CreateFramebuffers();
+	CreateFrameBuffers();
 }
 
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -1132,7 +1132,7 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 	VkRenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassInfo.renderPass = _renderPass;
-	renderPassInfo.framebuffer = _swapChainFramebuffers[imageIndex];
+	renderPassInfo.framebuffer = _swapChainFrameBuffers[imageIndex];
 	renderPassInfo.renderArea.offset = { 0, 0 };
 	renderPassInfo.renderArea.extent = _swapChainExtent;
 
@@ -1219,9 +1219,9 @@ void RenderLoop::DrawFrame()
 	presentInfo.pResults = nullptr;
 
 	result = vkQueuePresentKHR(_presentationQueue, &presentInfo);
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _framebufferResized)
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _frameBufferResized)
 	{
-		_framebufferResized = false;
+		_frameBufferResized = false;
 		RecreateSwapChain();
 	}
 	else if (result != VK_SUCCESS)
@@ -1260,7 +1260,7 @@ void RenderLoop::MainLoop()
 
 void RenderLoop::CleanupSwapChain() const
 {
-	for (const auto framebuffer : _swapChainFramebuffers)
+	for (const auto framebuffer : _swapChainFrameBuffers)
 	{
 		vkDestroyFramebuffer(_device, framebuffer, nullptr);
 	}

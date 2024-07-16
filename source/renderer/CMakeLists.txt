@@ -36,4 +36,5 @@ target_link_libraries(${MODULE_NAME}
     Logger 
     Vulkan::Vulkan 
     glfw
+    ktx
 )
