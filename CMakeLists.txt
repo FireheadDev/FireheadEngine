@@ -51,45 +51,7 @@ add_subdirectory(./libraries/glm)
 set_target_properties(glm PROPERTIES FOLDER "Libraries")
 
 # KTX
-set(KTX_FEATURE_DOC OFF CACHE BOOL "" FORCE)
-set(KTX_FEATURE_STATIC_LIBRARY OFF CACHE BOOL "" FORCE)
-set(KTX_FEATURE_JNI OFF CACHE BOOL "" FORCE)
-set(KTX_FEATURE_PY OFF CACHE BOOL "" FORCE)
-set(KTX_FEATURE_TESTS OFF CACHE BOOL "" FORCE)
-set(KTX_FEATURE_TOOLS_CTS OFF CACHE BOOL "" FORCE)
-
-set(KTX_FEATURE_ETC_UNPACK OFF CACHE BOOL "" FORCE)
-
-set(KTX_FEATURE_BASISU_SUPPORT_SSE OFF CACHE BOOL "" FORCE)
-set(KTX_FEATURE_BASISU_SUPPORT_OPENCL OFF CACHE BOOL "" FORCE)
-
-set(KTX_FEATURE_EMBED_BITCODE OFF CACHE BOOL "" FORCE)
-
-set(KTX_FEATURE_GL_UPLOAD OFF CACHE BOOL "" FORCE)
-set(KTX_FEATURE_GL_UPLOAD OFF CACHE BOOL "" FORCE)
-
-
 add_subdirectory(./libraries/ktx)
-set_target_properties(ktx PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(astcenc-avx2-static PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(fmt PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(imageio PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(ktx_read PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(ktx_version PROPERTIES FOLDER "Libraries/ktx/versions")
-set_target_properties(ktx2check PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(ktx2check_version PROPERTIES FOLDER "Libraries/ktx/versions")
-set_target_properties(ktx2ktx2 PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(ktx2ktx2_version PROPERTIES FOLDER "Libraries/ktx/versions")
-set_target_properties(ktxinfo PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(ktxinfo_version PROPERTIES FOLDER "Libraries/ktx/versions")
-set_target_properties(ktxsc PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(ktxsc_version PROPERTIES FOLDER "Libraries/ktx/versions")
-set_target_properties(ktxtools PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(ktxtools_version PROPERTIES FOLDER "Libraries/ktx/versions")
-set_target_properties(obj_basisu_cbind PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(objUtil PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(toktx PROPERTIES FOLDER "Libraries/ktx")
-set_target_properties(toktx_version PROPERTIES FOLDER "Libraries/ktx/versions")
 
 
 target_include_directories(${MODULE_NAME}
@@ -115,6 +77,7 @@ target_link_directories(
 	PUBLIC ${Vulkan_LIBRARIES}
 	PRIVATE ./libraries/glfw
 	PRIVATE ./libraries/glm
+	PRIVATE ./libraries/ktx
 )
 
 target_link_libraries(${MODULE_NAME}
@@ -124,6 +87,7 @@ target_link_libraries(${MODULE_NAME}
 	Vulkan::Vulkan
 	glfw
 	glm
+	ktx
 )
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT App)

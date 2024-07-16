@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+//#include <ktxvulkan.h>
 
 #define NOMINMAX
 #define VK_USE_PLATFORM_WIN32_KHR
@@ -51,7 +52,7 @@ extern "C"
 		VkExtent2D _swapChainExtent;
 		std::vector<VkImage> _swapChainImages;
 		std::vector<VkImageView> _swapChainImageViews;
-		std::vector<VkFramebuffer> _swapChainFramebuffers;
+		std::vector<VkFramebuffer> _swapChainFrameBuffers;
 		
 		VkDescriptorSetLayout _descriptorSetLayout;
 		VkDescriptorPool _descriptorPool;
@@ -80,7 +81,7 @@ extern "C"
 		std::vector<VkSemaphore> _imageAvailableSemaphores;
 		std::vector<VkSemaphore> _renderFinishedSemaphores;
 		std::vector<VkFence> _inFlightFences;
-		bool _framebufferResized;
+		bool _frameBufferResized;
 
 		const std::vector<Vertex> _vertices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 			{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}},
@@ -113,7 +114,7 @@ extern "C"
 		void CreateRenderPass();
 		void CreateDescriptorSetLayout();
 		void CreateGraphicsPipeline();
-		void CreateFramebuffers();
+		void CreateFrameBuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
