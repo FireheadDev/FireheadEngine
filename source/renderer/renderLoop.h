@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-//#include <ktxvulkan.h>
 
 #define NOMINMAX
 #define VK_USE_PLATFORM_WIN32_KHR
@@ -18,6 +17,7 @@
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 //#include <GLFW/glfw3native.h>
+#include <ktxvulkan.h>
 
 #include "Vertex.h"
 #include "../core/FHEMacros.h"
@@ -92,6 +92,7 @@ extern "C"
 		const std::vector<uint16_t> _indices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 			0, 1, 2, 2, 3, 0
 		};
+		std::vector<std::pair<VkImageView, ktxVulkanTexture>> _textures;
 
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
@@ -116,6 +117,7 @@ extern "C"
 		void CreateGraphicsPipeline();
 		void CreateFrameBuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
+		void CreateTextureImage();
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateUniformBuffers();
@@ -141,6 +143,7 @@ extern "C"
 		[[nodiscard]] VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode) const;
 		void CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const;
 		void CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer, const VkDeviceSize& size) const;
+		void LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture);
 
 		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& physicalDevice) const;
 		static void GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices);

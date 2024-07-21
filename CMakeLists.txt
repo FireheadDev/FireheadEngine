@@ -44,14 +44,25 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(./libraries/glfw)
-set_target_properties(glfw PROPERTIES FOLDER "Libraries")
+set_target_properties(glfw PROPERTIES FOLDER "Libraries/GLFW")
+set_target_properties(uninstall PROPERTIES FOLDER "Libraries/GLFW")
+set_target_properties(update_mappings PROPERTIES FOLDER "Libraries/GLFW")
 
 # GLM
 add_subdirectory(./libraries/glm)
 set_target_properties(glm PROPERTIES FOLDER "Libraries")
 
 # KTX
+set(KTX_FEATURE_TESTS OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_TOOLS OFF CACHE BOOL "" FORCE)
+set(KTX_FEATURE_STATIC_LIBRARY ON CACHE BOOL "" FORCE)
 add_subdirectory(./libraries/ktx)
+set_target_properties(astcenc-avx2-static PROPERTIES FOLDER "Libraries/KTX")
+set_target_properties(ktx PROPERTIES FOLDER "Libraries/KTX")
+set_target_properties(ktx_read PROPERTIES FOLDER "Libraries/KTX")
+set_target_properties(ktx_version PROPERTIES FOLDER "Libraries/KTX")
+set_target_properties(obj_basisu_cbind PROPERTIES FOLDER "Libraries/KTX")
+set_target_properties(objUtil PROPERTIES FOLDER "Libraries/KTX")
 
 
 target_include_directories(${MODULE_NAME}
@@ -62,6 +73,7 @@ target_include_directories(${MODULE_NAME}
 	${Vulkan_INCLUDE_DIRS}
 	PUBLIC ./libraries/glfw
 	PUBLIC ./libraries/glm
+	PUBLIC ./libraries/ktx/include
 )
 
 # Handle 1st-party modules
@@ -77,7 +89,7 @@ target_link_directories(
 	PUBLIC ${Vulkan_LIBRARIES}
 	PRIVATE ./libraries/glfw
 	PRIVATE ./libraries/glm
-	PRIVATE ./libraries/ktx
+	PUBLIC ./libraries/ktx
 )
 
 target_link_libraries(${MODULE_NAME}
