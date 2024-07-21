@@ -128,6 +128,7 @@ void RenderLoop::InitVulkan()
 	CreateGraphicsPipeline();
 	CreateFrameBuffers();
 	CreateCommandPool(queueFamilyIndices);
+	CreateTextureImage();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffers();
@@ -579,6 +580,13 @@ void RenderLoop::CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices)
 		throw std::runtime_error("Failed to create transfer command pool!");
 }
 
+void RenderLoop::CreateTextureImage()
+{
+	_textures.resize(1);
+	LoadTexture("../textures/texture.jpg", _textures[0].first, _textures[0].second);
+	
+}
+
 void RenderLoop::CreateVertexBuffer()
 {
 	const VkDeviceSize bufferSize = sizeof(_vertices[0]) * _vertices.size();
@@ -979,6 +987,47 @@ void RenderLoop::CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer
 	vkFreeCommandBuffers(_device, _transferCommandPool, 1, &commandBuffer);
 }
 
+void RenderLoop::LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture)
+{
+	ktxTexture* kTexture;
+	ktxVulkanDeviceInfo vulkanDeviceInfo;
+	if(ktxVulkanDeviceInfo_Construct(&vulkanDeviceInfo, _physicalDevice, _device, _graphicsQueue, _commandPool, nullptr) != KTX_error_code::KTX_SUCCESS)
+		throw std::runtime_error("Could not construct vulkan device for the creation of KTX textures!");
+	vulkanDeviceInfo.instance = _instance;
+
+	if(filePath.find('.') == std::string::npos)
+		throw std::runtime_error("Could not load a texture, because the filePath was invalid!");
+
+	filePath = filePath.substr(0, filePath.find_last_of('.'));
+	filePath.append(".ktx");
+	if(ktxTexture_CreateFromNamedFile(filePath.c_str(), KTX_TEXTURE_CREATE_NO_FLAGS, &kTexture) != KTX_error_code::KTX_SUCCESS)
+		throw std::runtime_error("Failed to create the texture from given file path!");
+
+	if(ktxTexture_VkUploadEx(kTexture, &vulkanDeviceInfo, &targetTexture, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))
+		throw std::runtime_error("Failed to upload texture to the device! (consider checking the encoding format on the relevant .ktx file)");
+
+	ktxTexture_Destroy(kTexture);
+	ktxVulkanDeviceInfo_Destruct(&vulkanDeviceInfo);
+
+	VkImageViewCreateInfo viewInfo{};
+	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewInfo.components = {
+		VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G,
+		VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A
+	};
+	viewInfo.image = targetTexture.image;
+	viewInfo.format = targetTexture.imageFormat;
+	viewInfo.viewType = targetTexture.viewType;
+	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	viewInfo.subresourceRange.layerCount = targetTexture.layerCount;
+	viewInfo.subresourceRange.levelCount = targetTexture.levelCount;
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+
+	if(vkCreateImageView(_device, &viewInfo, nullptr, &targetView))
+		throw std::runtime_error("Failed to create an image view for a texture!");
+}
+
 
 QueueFamilyIndices RenderLoop::FindQueueFamilies(const VkPhysicalDevice& physicalDevice) const
 {
@@ -1294,6 +1343,13 @@ void RenderLoop::Cleanup() const
 	{
 		vkDestroyBuffer(_device, _uniformBuffers[i], nullptr);
 		vkFreeMemory(_device, _uniformBuffersMemory[i], nullptr);
+	}
+
+	// Textures
+	for (const auto& texture : _textures)
+	{
+		vkDestroyImageView(_device, texture.first, nullptr);
+		ktxVulkanTexture_Destruct(const_cast<ktxVulkanTexture*>(&texture.second), _device, nullptr);
 	}
 
 	vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
