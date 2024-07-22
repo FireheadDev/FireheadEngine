@@ -19,6 +19,7 @@
 //#include <GLFW/glfw3native.h>
 #include <ktxvulkan.h>
 
+#include "FHEImage.h"
 #include "Vertex.h"
 #include "../core/FHEMacros.h"
 
@@ -92,7 +93,8 @@ extern "C"
 		const std::vector<uint16_t> _indices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 			0, 1, 2, 2, 3, 0
 		};
-		std::vector<std::pair<VkImageView, ktxVulkanTexture>> _textures;
+		VkSampler _mainSampler;
+		std::vector<FHEImage> _textures;
 
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
@@ -117,7 +119,7 @@ extern "C"
 		void CreateGraphicsPipeline();
 		void CreateFrameBuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
-		void CreateTextureImage();
+		void CreateTextures();
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateUniformBuffers();
@@ -147,13 +149,14 @@ extern "C"
 		// TODO: Make parameters aside from the first 3 into a struct to simplify signature
 		void LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture, const VkImageTiling& tiling = VK_IMAGE_TILING_OPTIMAL, const VkImageUsageFlags& usage = VK_IMAGE_USAGE_SAMPLED_BIT, const VkImageLayout& layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, const ktxTextureCreateFlagBits& createFlags = KTX_TEXTURE_CREATE_NO_FLAGS) const;
 		void TransitionImageLayout(const VkImage& image, VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout);
+		void CreateSampler(VkSampler& sampler) const;
 
 		void BeginSingleTimeCommand(VkCommandBuffer& commandBuffer) const;
 		void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer) const;
 
 		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& physicalDevice) const;
 		static void GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices);
-		[[nodiscard]] int32_t RateDeviceSuitability(VkPhysicalDevice device) const;
+		[[nodiscard]] int32_t RateDeviceSuitability(VkPhysicalDevice physicalDevice) const;
 		[[nodiscard]] static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 		void SelectPhysicalDevice();
 		[[nodiscard]] uint32_t FindMemoryType(const uint32_t& typeFilter, const VkMemoryPropertyFlags& properties) const;
