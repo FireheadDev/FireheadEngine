@@ -85,10 +85,10 @@ extern "C"
 		bool _frameBufferResized;
 
 		const std::vector<Vertex> _vertices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-			{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}},
-			{{0.5f, -0.5f}, {0.f, 1.f, 0.f}},
-			{{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
-			{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}},
+			{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f}},
+			{{0.5f, -0.5f}, {0.f, 1.f, 0.f}, {0.f, 0.f}},
+			{{0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
+			{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
 		};
 		const std::vector<uint16_t> _indices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 			0, 1, 2, 2, 3, 0
