@@ -89,6 +89,8 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_currentFrame = 0;
 	_frameBufferResized = false;
 
+	_mainSampler = nullptr;
+
 	printf("Rendering Loop created\n");
 }
 
@@ -128,7 +130,7 @@ void RenderLoop::InitVulkan()
 	CreateGraphicsPipeline();
 	CreateFrameBuffers();
 	CreateCommandPool(queueFamilyIndices);
-	CreateTextureImage();
+	CreateTextures();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffers();
@@ -224,7 +226,8 @@ void RenderLoop::CreateLogicalDevice(const QueueFamilyIndices& indices)
 		queueCreateInfos.push_back(queueCreateInfo);
 	}
 
-	const VkPhysicalDeviceFeatures deviceFeatures{};
+	VkPhysicalDeviceFeatures deviceFeatures{};
+	deviceFeatures.samplerAnisotropy = VK_TRUE;
 
 	VkDeviceCreateInfo deviceCreateInfo{};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -580,11 +583,13 @@ void RenderLoop::CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices)
 		throw std::runtime_error("Failed to create transfer command pool!");
 }
 
-void RenderLoop::CreateTextureImage()
+void RenderLoop::CreateTextures()
 {
-	_textures.resize(1);
-	LoadTexture("../textures/texture.jpg", _textures[0].first, _textures[0].second);
+	CreateSampler(_mainSampler);
 
+	_textures.resize(1);
+	LoadTexture("../textures/texture.jpg", _textures[0].view, _textures[0].texture);
+	_textures[0].sampler = _mainSampler;
 }
 
 void RenderLoop::CreateVertexBuffer()
@@ -1085,6 +1090,34 @@ void RenderLoop::TransitionImageLayout(const VkImage& image, VkFormat& format, c
 	EndSingleTimeCommands(commandBuffer);
 }
 
+void RenderLoop::CreateSampler(VkSampler& sampler) const
+{
+	VkPhysicalDeviceProperties properties{};
+	vkGetPhysicalDeviceProperties(_physicalDevice, &properties);
+
+	VkSamplerCreateInfo samplerInfo{};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	// TODO: Add parameters for the filters
+	samplerInfo.magFilter = VK_FILTER_LINEAR;
+	samplerInfo.minFilter = VK_FILTER_LINEAR;
+	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.mipLodBias = 0.f;
+	samplerInfo.minLod = 0.f;
+	samplerInfo.maxLod = 0.f;
+
+	if(vkCreateSampler(_device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create texture sampler!");
+}
+
 void RenderLoop::BeginSingleTimeCommand(VkCommandBuffer& commandBuffer) const
 {
 	VkCommandBufferAllocateInfo allocInfo{};
@@ -1161,14 +1194,14 @@ void RenderLoop::GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, 
 	}
 }
 
-int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device) const
+int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice physicalDevice) const
 {
-	const QueueFamilyIndices indices = FindQueueFamilies(device);
+	const QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
 
 	VkPhysicalDeviceProperties deviceProperties;
 	VkPhysicalDeviceFeatures deviceFeatures;
-	vkGetPhysicalDeviceProperties(device, &deviceProperties);
-	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
 	int32_t score = 0;
 
@@ -1178,15 +1211,17 @@ int32_t RenderLoop::RateDeviceSuitability(const VkPhysicalDevice device) const
 	score += static_cast<int32_t>(deviceProperties.limits.maxImageDimension2D);
 
 	// Required traits
-	const bool extensionsSupported = CheckDeviceExtensionSupport(device);
+	VkPhysicalDeviceFeatures supportedFeatures;
+	vkGetPhysicalDeviceFeatures(physicalDevice, &supportedFeatures);
+	const bool extensionsSupported = CheckDeviceExtensionSupport(physicalDevice);
 	bool swapChainAdequate = false;
 	if (extensionsSupported)
 	{
-		const SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device);
+		const SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice);
 		swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 	}
 
-	if (!deviceFeatures.geometryShader || !indices.IsComplete() || !extensionsSupported || !swapChainAdequate)
+	if (!deviceFeatures.geometryShader || !indices.IsComplete() || !extensionsSupported || !swapChainAdequate || !supportedFeatures.samplerAnisotropy)
 		return 0;
 
 	return score;
@@ -1437,9 +1472,12 @@ void RenderLoop::Cleanup() const
 	// Textures
 	for (const auto& texture : _textures)
 	{
-		vkDestroyImageView(_device, texture.first, nullptr);
-		ktxVulkanTexture_Destruct(const_cast<ktxVulkanTexture*>(&texture.second), _device, nullptr);
+		vkDestroyImageView(_device, texture.view, nullptr);
+		ktxVulkanTexture_Destruct(const_cast<ktxVulkanTexture*>(&texture.texture), _device, nullptr);
+		if(texture.sampler != _mainSampler)
+			vkDestroySampler(_device, texture.sampler, nullptr);
 	}
+	vkDestroySampler(_device, _mainSampler, nullptr);
 
 	vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
