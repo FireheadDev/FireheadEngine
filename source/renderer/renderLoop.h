@@ -17,7 +17,9 @@
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 //#include <GLFW/glfw3native.h>
+#include <ktxvulkan.h>
 
+#include "FHEImage.h"
 #include "Vertex.h"
 #include "../core/FHEMacros.h"
 
@@ -51,7 +53,7 @@ extern "C"
 		VkExtent2D _swapChainExtent;
 		std::vector<VkImage> _swapChainImages;
 		std::vector<VkImageView> _swapChainImageViews;
-		std::vector<VkFramebuffer> _swapChainFramebuffers;
+		std::vector<VkFramebuffer> _swapChainFrameBuffers;
 		
 		VkDescriptorSetLayout _descriptorSetLayout;
 		VkDescriptorPool _descriptorPool;
@@ -80,17 +82,19 @@ extern "C"
 		std::vector<VkSemaphore> _imageAvailableSemaphores;
 		std::vector<VkSemaphore> _renderFinishedSemaphores;
 		std::vector<VkFence> _inFlightFences;
-		bool _framebufferResized;
+		bool _frameBufferResized;
 
 		const std::vector<Vertex> _vertices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-			{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}},
-			{{0.5f, -0.5f}, {0.f, 1.f, 0.f}},
-			{{0.5f, 0.5f}, {0.f, 0.f, 1.f}},
-			{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}},
+			{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f}},
+			{{0.5f, -0.5f}, {0.f, 1.f, 0.f}, {0.f, 0.f}},
+			{{0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
+			{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
 		};
 		const std::vector<uint16_t> _indices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 			0, 1, 2, 2, 3, 0
 		};
+		VkSampler _mainSampler;
+		std::vector<FHEImage> _textures;
 
 #pragma region Compile-Time Staic Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
@@ -113,8 +117,9 @@ extern "C"
 		void CreateRenderPass();
 		void CreateDescriptorSetLayout();
 		void CreateGraphicsPipeline();
-		void CreateFramebuffers();
+		void CreateFrameBuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
+		void CreateTextures();
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateUniformBuffers();
@@ -140,10 +145,18 @@ extern "C"
 		[[nodiscard]] VkShaderModule CreateShaderModule(const std::vector<char>& shaderCode) const;
 		void CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const;
 		void CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer, const VkDeviceSize& size) const;
+		void CopyBufferToImage(const VkBuffer& buffer, const VkImage& image, const uint32_t& width, const uint32_t& height) const;
+		// TODO: Make parameters aside from the first 3 into a struct to simplify signature
+		void LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture, const VkImageTiling& tiling = VK_IMAGE_TILING_OPTIMAL, const VkImageUsageFlags& usage = VK_IMAGE_USAGE_SAMPLED_BIT, const VkImageLayout& layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, const ktxTextureCreateFlagBits& createFlags = KTX_TEXTURE_CREATE_NO_FLAGS) const;
+		void TransitionImageLayout(const VkImage& image, VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout);
+		void CreateSampler(VkSampler& sampler) const;
+
+		void BeginSingleTimeCommand(VkCommandBuffer& commandBuffer) const;
+		void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer) const;
 
 		[[nodiscard]] QueueFamilyIndices FindQueueFamilies(const VkPhysicalDevice& physicalDevice) const;
 		static void GetUniqueQueueFamilyIndices(const QueueFamilyIndices& indices, std::vector<uint32_t>& queueFamilyIndices);
-		[[nodiscard]] int32_t RateDeviceSuitability(VkPhysicalDevice device) const;
+		[[nodiscard]] int32_t RateDeviceSuitability(VkPhysicalDevice physicalDevice) const;
 		[[nodiscard]] static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 		void SelectPhysicalDevice();
 		[[nodiscard]] uint32_t FindMemoryType(const uint32_t& typeFilter, const VkMemoryPropertyFlags& properties) const;
