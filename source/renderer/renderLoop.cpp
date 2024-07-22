@@ -584,7 +584,7 @@ void RenderLoop::CreateTextureImage()
 {
 	_textures.resize(1);
 	LoadTexture("../textures/texture.jpg", _textures[0].first, _textures[0].second);
-	
+
 }
 
 void RenderLoop::CreateVertexBuffer()
@@ -954,19 +954,8 @@ void RenderLoop::CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags
 
 void RenderLoop::CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer, const VkDeviceSize& size) const
 {
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = _transferCommandPool;
-	allocInfo.commandBufferCount = 1;
-
 	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(_device, &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+	BeginSingleTimeCommand(commandBuffer);
 
 	VkBufferCopy copyRegion{};
 	copyRegion.srcOffset = 0;
@@ -974,36 +963,53 @@ void RenderLoop::CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer
 	copyRegion.size = size;
 	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-	vkEndCommandBuffer(commandBuffer);
+	EndSingleTimeCommands(commandBuffer);
+}
 
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
+void RenderLoop::CopyBufferToImage(const VkBuffer& buffer, const VkImage& image, const uint32_t& width, const uint32_t& height) const
+{
+	VkCommandBuffer commandBuffer;
+	BeginSingleTimeCommand(commandBuffer);
 
-	vkQueueSubmit(_transferQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(_transferQueue);
+	VkBufferImageCopy region{};
+	region.bufferOffset = 0;
+	region.bufferRowLength = 0;
+	region.bufferImageHeight = 0;
 
-	vkFreeCommandBuffers(_device, _transferCommandPool, 1, &commandBuffer);
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.mipLevel = 0;
+	region.imageSubresource.baseArrayLayer = 0;
+	region.imageSubresource.layerCount = 1;
+
+	region.imageOffset = {0, 0, 0};
+	region.imageExtent = {
+		width,
+		height,
+		1
+	};
+
+	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+	EndSingleTimeCommands(commandBuffer);
 }
 
 void RenderLoop::LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkImageLayout& layout, const ktxTextureCreateFlagBits& createFlags) const
 {
 	ktxTexture* kTexture;
 	ktxVulkanDeviceInfo vulkanDeviceInfo;
-	if(ktxVulkanDeviceInfo_Construct(&vulkanDeviceInfo, _physicalDevice, _device, _graphicsQueue, _commandPool, nullptr) != KTX_error_code::KTX_SUCCESS)
+	if (ktxVulkanDeviceInfo_Construct(&vulkanDeviceInfo, _physicalDevice, _device, _graphicsQueue, _commandPool, nullptr) != KTX_error_code::KTX_SUCCESS)
 		throw std::runtime_error("Could not construct vulkan device for the creation of KTX textures!");
 	vulkanDeviceInfo.instance = _instance;
 
-	if(filePath.find('.') == std::string::npos)
+	if (filePath.find('.') == std::string::npos)
 		throw std::runtime_error("Could not load a texture, because the filePath was invalid!");
 
 	filePath = filePath.substr(0, filePath.find_last_of('.'));
 	filePath.append(".ktx");
-	if(ktxTexture_CreateFromNamedFile(filePath.c_str(), createFlags, &kTexture) != KTX_error_code::KTX_SUCCESS)
+	if (ktxTexture_CreateFromNamedFile(filePath.c_str(), createFlags, &kTexture) != KTX_error_code::KTX_SUCCESS)
 		throw std::runtime_error("Failed to create the texture from given file path!");
 
-	if(ktxTexture_VkUploadEx(kTexture, &vulkanDeviceInfo, &targetTexture, tiling, usage, layout))
+	if (ktxTexture_VkUploadEx(kTexture, &vulkanDeviceInfo, &targetTexture, tiling, usage, layout))
 		throw std::runtime_error("Failed to upload texture to the device! (consider checking the encoding format on the relevant .ktx file)");
 
 	ktxTexture_Destroy(kTexture);
@@ -1024,8 +1030,91 @@ void RenderLoop::LoadTexture(std::string filePath, VkImageView& targetView, ktxV
 	viewInfo.subresourceRange.baseMipLevel = 0;
 	viewInfo.subresourceRange.baseArrayLayer = 0;
 
-	if(vkCreateImageView(_device, &viewInfo, nullptr, &targetView))
+	if (vkCreateImageView(_device, &viewInfo, nullptr, &targetView))
 		throw std::runtime_error("Failed to create an image view for a texture!");
+}
+
+void RenderLoop::TransitionImageLayout(const VkImage& image, VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout)
+{
+	VkCommandBuffer commandBuffer;
+	VkPipelineStageFlags sourceStage;
+	VkPipelineStageFlags destinationStage;
+	BeginSingleTimeCommand(commandBuffer);
+
+	VkImageMemoryBarrier barrier{};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = oldLayout;
+	barrier.newLayout = newLayout;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+	if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+	{
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+	}
+	else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+	{
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+		sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		destinationStage = VK_ACCESS_SHADER_READ_BIT;
+	}
+	else
+		throw std::invalid_argument("Unsupported layout transition!");
+
+
+	vkCmdPipelineBarrier(
+		commandBuffer,
+		sourceStage, destinationStage,
+		0,
+		0, nullptr,
+		0, nullptr,
+		1, &barrier
+	);
+
+	EndSingleTimeCommands(commandBuffer);
+}
+
+void RenderLoop::BeginSingleTimeCommand(VkCommandBuffer& commandBuffer) const
+{
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = _commandPool;
+	allocInfo.commandBufferCount = 1;
+
+	vkAllocateCommandBuffers(_device, &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+}
+
+void RenderLoop::EndSingleTimeCommands(const VkCommandBuffer& commandBuffer) const
+{
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(_graphicsQueue);
+
+	vkFreeCommandBuffers(_device, _commandPool, 1, &commandBuffer);
 }
 
 
