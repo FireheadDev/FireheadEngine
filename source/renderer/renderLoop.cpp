@@ -1628,9 +1628,19 @@ void RenderLoop::UpdateUniformBuffer(const uint32_t& currentImage) const
 	const auto currentTime = std::chrono::high_resolution_clock::now();
 	const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
+	glm::mat4 objectTransform
+	{
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		0, 0, 0, 1,
+	};
+	objectTransform = rotate(objectTransform, glm::radians(45.f), glm::vec3(0.f, 0.f, 1.f));
+	objectTransform = rotate(objectTransform, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+
 	UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.f), time * glm::radians(90.f), glm::vec3(0.f, 0.f, 1.f));
-	ubo.view = glm::lookAt(glm::vec3(2.f, 2.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+	ubo.model = rotate(objectTransform, time * glm::radians(270.f), glm::vec3(0.f, 1.f, 0.f));
+	ubo.view = lookAt(glm::vec3(2.f, 2.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
 	ubo.projection = glm::perspective(glm::radians(45.f), static_cast<float>(_swapChainExtent.width) / static_cast<float>(_swapChainExtent.height), 0.1f, 10.f);
 	// Invert y coordinates for change from OpenGL to Vulkan
 	ubo.projection[1][1] *= -1;
