@@ -17,6 +17,8 @@
 #include "QueueFamilyIndices.h"
 #include "SwapChainSupportDetails.h"
 #define TINYOBJLOADER_IMPLEMENTATION
+#include <unordered_map>
+
 #include "tiny_obj_loader.h"
 #include "UniformBufferObject.h"
 #include "Vertex.h"
@@ -657,12 +659,14 @@ void RenderLoop::LoadModel()
 	std::vector<tinyobj::material_t> materials;
 	std::string warn, err;
 
-	if(!LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str()))
+	std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+	if (!LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str()))
 		throw std::runtime_error(warn + err);
 
-	for(const auto& shape: shapes)
+	for (const auto& shape : shapes)
 	{
-		for(const auto& index : shape.mesh.indices)
+		for (const auto& index : shape.mesh.indices)
 		{
 			Vertex vertex{};
 			vertex.position = {
@@ -674,10 +678,14 @@ void RenderLoop::LoadModel()
 				attrib.texcoords[2 * index.texcoord_index + 0],
 				1.f - attrib.texcoords[2 * index.texcoord_index + 1]
 			};
-			vertex.color = {1.f, 1.f, 1.f};
+			vertex.color = { 1.f, 1.f, 1.f };
 
-			_vertices.push_back(vertex);
-			_indices.push_back(static_cast<uint32_t>(_indices.size()));
+			if (uniqueVertices.count(vertex) == 0)
+			{
+				uniqueVertices[vertex] = static_cast<uint32_t>(_vertices.size());
+				_vertices.push_back(vertex);
+			}
+			_indices.push_back(uniqueVertices[vertex]);
 		}
 	}
 }
