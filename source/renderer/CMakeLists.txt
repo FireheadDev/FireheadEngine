@@ -34,4 +34,5 @@ target_link_libraries(${MODULE_NAME}
     Vulkan::Vulkan 
     glfw
     ktx
+    tinyobjloader
 )

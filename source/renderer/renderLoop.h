@@ -88,21 +88,8 @@ extern "C"
 		std::vector<VkFence> _inFlightFences;
 		bool _frameBufferResized;
 
-		const std::vector<Vertex> _vertices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-			{{-0.5f, -0.5f, 0.f}, {1.f, 0.f, 0.f}, {1.f, 0.f}},
-			{{0.5f, -0.5f, 0.f}, {0.f, 1.f, 0.f}, {0.f, 0.f}},
-			{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-			{{-0.5f, 0.5f, 0.f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
-
-			{{-0.5f, -0.5f, -0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f}},
-			{{0.5f, -0.5f, -0.5f}, {0.f, 1.f, 0.f}, {0.f, 0.f}},
-			{{0.5f, 0.5f, -0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-			{{-0.5f, 0.5f, -0.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
-		};
-		const std::vector<uint16_t> _indices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-			0, 1, 2, 2, 3, 0,
-			4, 5, 6, 6, 7, 4
-		};
+		std::vector<Vertex> _vertices;
+		std::vector<uint32_t> _indices;
 		VkSampler _mainSampler;
 		std::vector<FHEImage> _textures;
 
@@ -111,6 +98,8 @@ extern "C"
 		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
 		const static std::vector<const char*> DEVICE_EXTENSIONS;
 		const static uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+		const static std::string MODEL_PATH;
+		const static std::string TEXTURE_PATH;
 #pragma endregion
 
 #pragma region Initialization
@@ -131,6 +120,7 @@ extern "C"
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
 		void CreateDepthResources();
 		void CreateTextures();
+		void LoadModel();
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateUniformBuffers();

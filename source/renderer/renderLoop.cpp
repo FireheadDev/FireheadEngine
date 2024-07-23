@@ -16,6 +16,8 @@
 
 #include "QueueFamilyIndices.h"
 #include "SwapChainSupportDetails.h"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 #include "UniformBufferObject.h"
 #include "Vertex.h"
 #include "../logger/Logger.h"
@@ -23,10 +25,12 @@
 const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
 	"VK_LAYER_KHRONOS_validation",
 };
-
 const std::vector<const char*> RenderLoop::DEVICE_EXTENSIONS = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
+const std::string RenderLoop::MODEL_PATH = "../models/trout_rainbow.obj";
+const std::string RenderLoop::TEXTURE_PATH = "../textures/trout_rainbow.png";
+
 namespace
 {
 	std::vector<char> ReadFile(const std::string& fileName)
@@ -137,6 +141,7 @@ void RenderLoop::InitVulkan()
 	CreateDepthResources();
 	CreateFrameBuffers();
 	CreateTextures();
+	LoadModel();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffers();
@@ -386,7 +391,7 @@ void RenderLoop::CreateRenderPass()
 	subpass.pColorAttachments = &colorAttachmentRef;
 	subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
-	std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+	std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
 	VkRenderPassCreateInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -641,8 +646,40 @@ void RenderLoop::CreateTextures()
 	CreateSampler(_mainSampler);
 
 	_textures.resize(1);
-	LoadTexture("../textures/texture.jpg", _textures[0].view, _textures[0].texture);
+	LoadTexture(TEXTURE_PATH, _textures[0].view, _textures[0].texture);
 	_textures[0].sampler = _mainSampler;
+}
+
+void RenderLoop::LoadModel()
+{
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+	std::string warn, err;
+
+	if(!LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str()))
+		throw std::runtime_error(warn + err);
+
+	for(const auto& shape: shapes)
+	{
+		for(const auto& index : shape.mesh.indices)
+		{
+			Vertex vertex{};
+			vertex.position = {
+				attrib.vertices[3 * index.vertex_index + 0],
+				attrib.vertices[3 * index.vertex_index + 1],
+				attrib.vertices[3 * index.vertex_index + 2]
+			};
+			vertex.texCoord = {
+				attrib.texcoords[2 * index.texcoord_index + 0],
+				1.f - attrib.texcoords[2 * index.texcoord_index + 1]
+			};
+			vertex.color = {1.f, 1.f, 1.f};
+
+			_vertices.push_back(vertex);
+			_indices.push_back(static_cast<uint32_t>(_indices.size()));
+		}
+	}
 }
 
 void RenderLoop::CreateVertexBuffer()
@@ -1181,7 +1218,7 @@ void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& for
 	{
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-		if(HasStencilComponent(format))
+		if (HasStencilComponent(format))
 			barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 	}
 	else
@@ -1208,7 +1245,7 @@ void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& for
 		sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		destinationStage = VK_ACCESS_SHADER_READ_BIT;
 	}
-	else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+	else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
 	{
 		barrier.srcAccessMask = 0;
 		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
@@ -1481,8 +1518,8 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 
 	// Order must match the order of the attachments in CreateFrameBuffers
 	std::array<VkClearValue, 2> clearValues{};
-	clearValues[0].color = {{0.f, 0.f, 0.f, 1.f}};
-	clearValues[1].depthStencil = {1.f, 0};
+	clearValues[0].color = { {0.f, 0.f, 0.f, 1.f} };
+	clearValues[1].depthStencil = { 1.f, 0 };
 	renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
 	renderPassInfo.pClearValues = clearValues.data();
 
@@ -1505,7 +1542,7 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 	const VkBuffer vertexBuffers[] = { _vertexBuffer };
 	const VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-	vkCmdBindIndexBuffer(commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindIndexBuffer(commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[_currentFrame], 0, nullptr);
 
 	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
