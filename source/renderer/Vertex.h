@@ -2,14 +2,21 @@
 #define RENDERER_VERTEX_H_
 
 #include <glm/glm.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 #include <vulkan/vulkan.h>
 #include <array>
 
 struct Vertex
 {
-	glm::vec2 position;
+	glm::vec3 position;
 	glm::vec3 color;
 	glm::vec2 texCoord;
+
+	bool operator==(const Vertex& other) const
+	{
+		return position == other.position && color == other.color && texCoord == other.texCoord;
+	}
 
 	static VkVertexInputBindingDescription GetBindingDescription()
 	{
@@ -27,7 +34,7 @@ struct Vertex
 
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 		attributeDescriptions[0].offset = offsetof(Vertex, position);
 
 		attributeDescriptions[1].binding = 0;
@@ -41,6 +48,16 @@ struct Vertex
 		attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
 		return attributeDescriptions;
+	}
+};
+
+template<> struct std::hash<Vertex>
+{
+	size_t operator()(Vertex const& vertex) const noexcept
+	{
+		return ((std::hash<glm::vec3>()(vertex.position) ^
+			(std::hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+			(std::hash<glm::vec2>()(vertex.texCoord) << 1);
 	}
 };
 

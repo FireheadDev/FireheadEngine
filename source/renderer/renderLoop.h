@@ -54,7 +54,7 @@ extern "C"
 		std::vector<VkImage> _swapChainImages;
 		std::vector<VkImageView> _swapChainImageViews;
 		std::vector<VkFramebuffer> _swapChainFrameBuffers;
-		
+
 		VkDescriptorSetLayout _descriptorSetLayout;
 		VkDescriptorPool _descriptorPool;
 		std::vector<VkDescriptorSet> _descriptorSets;
@@ -76,6 +76,10 @@ extern "C"
 		std::vector<VkDeviceMemory> _uniformBuffersMemory;
 		std::vector<void*> _uniformBuffersMapped;
 
+		VkImage _depthImage;
+		VkDeviceMemory _depthImageMemory;
+		VkImageView _depthImageView;
+
 		VkDebugUtilsMessengerEXT _debugMessenger;
 
 		uint32_t _currentFrame;
@@ -84,23 +88,18 @@ extern "C"
 		std::vector<VkFence> _inFlightFences;
 		bool _frameBufferResized;
 
-		const std::vector<Vertex> _vertices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-			{{-0.5f, -0.5f}, {1.f, 0.f, 0.f}, {1.f, 0.f}},
-			{{0.5f, -0.5f}, {0.f, 1.f, 0.f}, {0.f, 0.f}},
-			{{0.5f, 0.5f}, {0.f, 0.f, 1.f}, {0.f, 1.f}},
-			{{-0.5f, 0.5f}, {1.f, 1.f, 1.f}, {1.f, 1.f}},
-		};
-		const std::vector<uint16_t> _indices = {  // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
-			0, 1, 2, 2, 3, 0
-		};
+		std::vector<Vertex> _vertices;
+		std::vector<uint32_t> _indices;
 		VkSampler _mainSampler;
 		std::vector<FHEImage> _textures;
 
-#pragma region Compile-Time Staic Members
+#pragma region Compile-Time Static Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
 		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
 		const static std::vector<const char*> DEVICE_EXTENSIONS;
 		const static uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+		const static std::string MODEL_PATH;
+		const static std::string TEXTURE_PATH;
 #pragma endregion
 
 #pragma region Initialization
@@ -119,7 +118,9 @@ extern "C"
 		void CreateGraphicsPipeline();
 		void CreateFrameBuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
+		void CreateDepthResources();
 		void CreateTextures();
+		void LoadModel();
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateUniformBuffers();
@@ -146,9 +147,11 @@ extern "C"
 		void CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const;
 		void CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer, const VkDeviceSize& size) const;
 		void CopyBufferToImage(const VkBuffer& buffer, const VkImage& image, const uint32_t& width, const uint32_t& height) const;
+		void CreateImage(const uint32_t& width, const uint32_t& height, const VkFormat& format, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkImage& image, VkDeviceMemory& imageMemory) const;
+		void CreateImageView(const VkImage& image, const VkFormat& format, const VkImageAspectFlags& aspectFlags, VkImageView& imageView) const;
 		// TODO: Make parameters aside from the first 3 into a struct to simplify signature
 		void LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture, const VkImageTiling& tiling = VK_IMAGE_TILING_OPTIMAL, const VkImageUsageFlags& usage = VK_IMAGE_USAGE_SAMPLED_BIT, const VkImageLayout& layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, const ktxTextureCreateFlagBits& createFlags = KTX_TEXTURE_CREATE_NO_FLAGS) const;
-		void TransitionImageLayout(const VkImage& image, VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout);
+		void TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout) const;
 		void CreateSampler(VkSampler& sampler) const;
 
 		void BeginSingleTimeCommand(VkCommandBuffer& commandBuffer) const;
@@ -160,6 +163,9 @@ extern "C"
 		[[nodiscard]] static bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 		void SelectPhysicalDevice();
 		[[nodiscard]] uint32_t FindMemoryType(const uint32_t& typeFilter, const VkMemoryPropertyFlags& properties) const;
+		[[nodiscard]] VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, const VkImageTiling& tiling, VkFormatFeatureFlags features) const;
+		[[nodiscard]] VkFormat FindDepthFormat() const;
+		[[nodiscard]] static bool HasStencilComponent(const VkFormat& format);
 #pragma endregion
 
 #pragma region In Loop

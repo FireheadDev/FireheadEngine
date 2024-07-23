@@ -64,6 +64,9 @@ set_target_properties(ktx_version PROPERTIES FOLDER "Libraries/KTX")
 set_target_properties(obj_basisu_cbind PROPERTIES FOLDER "Libraries/KTX")
 set_target_properties(objUtil PROPERTIES FOLDER "Libraries/KTX")
 
+# tinyobjloader
+add_subdirectory(./libraries/tinyobjloader)
+set_target_properties(tinyobjloader PROPERTIES FOLDER "Libraries")
 
 target_include_directories(${MODULE_NAME}
 	PUBLIC "${PROJECT_BINARY_DIR}"
@@ -74,6 +77,7 @@ target_include_directories(${MODULE_NAME}
 	PUBLIC ./libraries/glfw
 	PUBLIC ./libraries/glm
 	PUBLIC ./libraries/ktx/include
+	PUBLIC ./libraries/tinyobjloader
 )
 
 # Handle 1st-party modules
@@ -89,17 +93,14 @@ target_link_directories(
 	PUBLIC ${Vulkan_LIBRARIES}
 	PRIVATE ./libraries/glfw
 	PRIVATE ./libraries/glm
-	PUBLIC ./libraries/ktx
+	PRIVATE ./libraries/ktx
+	PRIVATE ./libraries/tinyobjloader
 )
 
 target_link_libraries(${MODULE_NAME}
 	Core
 	Logger
 	Renderer
-	Vulkan::Vulkan
-	glfw
-	glm
-	ktx
 )
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT App)
