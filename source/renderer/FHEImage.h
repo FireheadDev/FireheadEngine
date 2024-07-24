@@ -7,7 +7,6 @@
 
 struct FHEImage
 {
-	uint32_t mipLevels;
 	VkImageView view;
 	ktxVulkanTexture texture;
 	VkSampler sampler;

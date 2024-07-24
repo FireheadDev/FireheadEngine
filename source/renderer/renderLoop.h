@@ -153,7 +153,7 @@ extern "C"
 		void LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture, const VkImageTiling& tiling = VK_IMAGE_TILING_OPTIMAL, const VkImageUsageFlags& usage = VK_IMAGE_USAGE_SAMPLED_BIT, const VkImageLayout& layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, const ktxTextureCreateFlagBits& createFlags = KTX_TEXTURE_CREATE_NO_FLAGS) const;
 		void TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout, const
 		                           uint32_t& mipLevels) const;
-		void CreateSampler(VkSampler& sampler) const;
+		void CreateSampler(FHEImage& image) const;
 
 		void BeginSingleTimeCommand(VkCommandBuffer& commandBuffer) const;
 		void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer) const;
