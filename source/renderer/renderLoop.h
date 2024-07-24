@@ -76,11 +76,18 @@ extern "C"
 		std::vector<VkDeviceMemory> _uniformBuffersMemory;
 		std::vector<void*> _uniformBuffersMapped;
 
+		// TODO: Create attachment image struct, potentially with some of the helper functions moved to that file instead of here.
 		VkImage _depthImage;
 		VkDeviceMemory _depthImageMemory;
 		VkImageView _depthImageView;
 
+		VkImage _colorImage;
+		VkDeviceMemory _colorImageMemory;
+		VkImageView _colorImageView;
+
 		VkDebugUtilsMessengerEXT _debugMessenger;
+
+		VkSampleCountFlagBits _msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
 		uint32_t _currentFrame;
 		std::vector<VkSemaphore> _imageAvailableSemaphores;
@@ -119,6 +126,7 @@ extern "C"
 		void CreateFrameBuffers();
 		void CreateCommandPool(const QueueFamilyIndices& queueFamilyIndices);
 		void CreateDepthResources();
+		void CreateColorResources();
 		void CreateTextures();
 		void LoadModel();
 		void CreateVertexBuffer();
@@ -147,12 +155,14 @@ extern "C"
 		void CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const;
 		void CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer, const VkDeviceSize& size) const;
 		void CopyBufferToImage(const VkBuffer& buffer, const VkImage& image, const uint32_t& width, const uint32_t& height) const;
-		void CreateImage(const uint32_t& width, const uint32_t& height, const VkFormat& format, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkImage& image, VkDeviceMemory& imageMemory) const;
-		void CreateImageView(const VkImage& image, const VkFormat& format, const VkImageAspectFlags& aspectFlags, VkImageView& imageView) const;
+		void CreateImage(const uint32_t& width, const uint32_t& height, const uint32_t& mipLevels, const VkSampleCountFlagBits& numSample, const VkFormat& format, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkImage& image, VkDeviceMemory& imageMemory) const;
+		void CreateImageView(const VkImage& image, const VkFormat& format, const VkImageAspectFlags& aspectFlags, const
+		                     uint32_t& mipLevels, VkImageView& imageView) const;
 		// TODO: Make parameters aside from the first 3 into a struct to simplify signature
 		void LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture, const VkImageTiling& tiling = VK_IMAGE_TILING_OPTIMAL, const VkImageUsageFlags& usage = VK_IMAGE_USAGE_SAMPLED_BIT, const VkImageLayout& layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, const ktxTextureCreateFlagBits& createFlags = KTX_TEXTURE_CREATE_NO_FLAGS) const;
-		void TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout) const;
-		void CreateSampler(VkSampler& sampler) const;
+		void TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout, const
+		                           uint32_t& mipLevels) const;
+		void CreateSampler(FHEImage& image) const;
 
 		void BeginSingleTimeCommand(VkCommandBuffer& commandBuffer) const;
 		void EndSingleTimeCommands(const VkCommandBuffer& commandBuffer) const;
@@ -166,6 +176,7 @@ extern "C"
 		[[nodiscard]] VkFormat FindSupportedFormat(const std::vector<VkFormat>& candidates, const VkImageTiling& tiling, VkFormatFeatureFlags features) const;
 		[[nodiscard]] VkFormat FindDepthFormat() const;
 		[[nodiscard]] static bool HasStencilComponent(const VkFormat& format);
+		[[nodiscard]] VkSampleCountFlagBits GetMaxUsableSampleCount() const;
 #pragma endregion
 
 #pragma region In Loop

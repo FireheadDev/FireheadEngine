@@ -95,6 +95,10 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_depthImageMemory = nullptr;
 	_depthImageView = nullptr;
 
+	_colorImage = nullptr;
+	_colorImageMemory = nullptr;
+	_colorImageView = nullptr;
+
 	_debugMessenger = nullptr;
 
 	_currentFrame = 0;
@@ -141,6 +145,7 @@ void RenderLoop::InitVulkan()
 	CreateGraphicsPipeline();
 	CreateCommandPool(queueFamilyIndices);
 	CreateDepthResources();
+	CreateColorResources();
 	CreateFrameBuffers();
 	CreateTextures();
 	LoadModel();
@@ -241,6 +246,7 @@ void RenderLoop::CreateLogicalDevice(const QueueFamilyIndices& indices)
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
+	deviceFeatures.sampleRateShading = VK_TRUE;
 
 	VkDeviceCreateInfo deviceCreateInfo{};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -353,13 +359,13 @@ void RenderLoop::CreateRenderPass()
 {
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = _swapChainImageFormat;
-	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachment.samples = _msaaSamples;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference colorAttachmentRef{};
 	colorAttachmentRef.attachment = 0;
@@ -367,7 +373,7 @@ void RenderLoop::CreateRenderPass()
 
 	VkAttachmentDescription depthAttachment{};
 	depthAttachment.format = FindDepthFormat();
-	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depthAttachment.samples = _msaaSamples;
 	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -378,6 +384,20 @@ void RenderLoop::CreateRenderPass()
 	VkAttachmentReference depthAttachmentRef{};
 	depthAttachmentRef.attachment = 1;
 	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentDescription colorAttachmentResolve{};
+	colorAttachmentResolve.format = _swapChainImageFormat;
+	colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	VkAttachmentReference colorAttachmentResolveRef{};
+	colorAttachmentResolveRef.attachment = 2;
+	colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkSubpassDependency dependency{};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -392,8 +412,9 @@ void RenderLoop::CreateRenderPass()
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
 	subpass.pDepthStencilAttachment = &depthAttachmentRef;
+	subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
-	std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+	std::array<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
 	VkRenderPassCreateInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -451,12 +472,12 @@ void RenderLoop::CreateGraphicsPipeline()
 	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	fragShaderStageInfo.module = fragShaderModule;
 	fragShaderStageInfo.pName = "main";
-	std::vector<VkPipelineShaderStageCreateInfo> shaderStages = {
+	const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
 		vertShaderStageInfo,
 		fragShaderStageInfo
 	};
 
-	std::vector<VkDynamicState> dynamicStates = {
+	const std::array<VkDynamicState, 2> dynamicStates = {
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_SCISSOR,
 	};
@@ -510,9 +531,9 @@ void RenderLoop::CreateGraphicsPipeline()
 
 	VkPipelineMultisampleStateCreateInfo multisamplingInfo{};
 	multisamplingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisamplingInfo.sampleShadingEnable = VK_FALSE;
-	multisamplingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-	multisamplingInfo.minSampleShading = 1.f;
+	multisamplingInfo.sampleShadingEnable = VK_TRUE;
+	multisamplingInfo.rasterizationSamples = _msaaSamples;
+	multisamplingInfo.minSampleShading = 0.2f;
 	multisamplingInfo.pSampleMask = nullptr;
 	multisamplingInfo.alphaToCoverageEnable = VK_FALSE;
 	multisamplingInfo.alphaToOneEnable = VK_FALSE;
@@ -597,9 +618,10 @@ void RenderLoop::CreateFrameBuffers()
 
 	for (size_t i = 0; i < _swapChainImageViews.size(); ++i)
 	{
-		std::array<VkImageView, 2> attachments = {
+		std::array<VkImageView, 3> attachments = {
+			_colorImageView,
+			_depthImageView,
 			_swapChainImageViews[i],
-			_depthImageView
 		};
 
 		VkFramebufferCreateInfo framebufferInfo{};
@@ -637,19 +659,26 @@ void RenderLoop::CreateDepthResources()
 {
 	const VkFormat depthFormat = FindDepthFormat();
 
-	CreateImage(_swapChainExtent.width, _swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _depthImage, _depthImageMemory);
-	CreateImageView(_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, _depthImageView);
+	CreateImage(_swapChainExtent.width, _swapChainExtent.height, 1, _msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _depthImage, _depthImageMemory);
+	CreateImageView(_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1, _depthImageView);
 
-	TransitionImageLayout(_depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	TransitionImageLayout(_depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 }
+
+void RenderLoop::CreateColorResources()
+{
+	const VkFormat colorFormat = _swapChainImageFormat;
+
+	CreateImage(_swapChainExtent.width, _swapChainExtent.height, 1, _msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _colorImage, _colorImageMemory);
+	CreateImageView(_colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1, _colorImageView);
+}
+
 
 void RenderLoop::CreateTextures()
 {
-	CreateSampler(_mainSampler);
-
 	_textures.resize(1);
 	LoadTexture(TEXTURE_PATH, _textures[0].view, _textures[0].texture);
-	_textures[0].sampler = _mainSampler;
+	CreateSampler(_textures[0]);
 }
 
 void RenderLoop::LoadModel()
@@ -876,6 +905,7 @@ void RenderLoop::RecreateSwapChain()
 	CreateSwapChain(queueFamilyIndices);
 	CreateImageViews();
 	CreateDepthResources();
+	CreateColorResources();
 	CreateFrameBuffers();
 }
 
@@ -1115,7 +1145,7 @@ void RenderLoop::CopyBufferToImage(const VkBuffer& buffer, const VkImage& image,
 	EndSingleTimeCommands(commandBuffer);
 }
 
-void RenderLoop::CreateImage(const uint32_t& width, const uint32_t& height, const VkFormat& format, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkImage& image, VkDeviceMemory& imageMemory) const
+void RenderLoop::CreateImage(const uint32_t& width, const uint32_t& height, const uint32_t& mipLevels, const VkSampleCountFlagBits& numSample, const VkFormat& format, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkImage& image, VkDeviceMemory& imageMemory) const
 {
 	VkImageCreateInfo imageInfo{};
 	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1123,13 +1153,13 @@ void RenderLoop::CreateImage(const uint32_t& width, const uint32_t& height, cons
 	imageInfo.extent.width = width;
 	imageInfo.extent.height = height;
 	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = 1;
+	imageInfo.mipLevels = mipLevels;
 	imageInfo.arrayLayers = 1;
 	imageInfo.format = format;
 	imageInfo.tiling = tiling;
 	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	imageInfo.usage = usage;
-	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageInfo.samples = numSample;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 	if (vkCreateImage(_device, &imageInfo, nullptr, &image) != VK_SUCCESS)
@@ -1149,7 +1179,7 @@ void RenderLoop::CreateImage(const uint32_t& width, const uint32_t& height, cons
 	vkBindImageMemory(_device, image, imageMemory, 0);
 }
 
-void RenderLoop::CreateImageView(const VkImage& image, const VkFormat& format, const VkImageAspectFlags& aspectFlags, VkImageView& imageView) const
+void RenderLoop::CreateImageView(const VkImage& image, const VkFormat& format, const VkImageAspectFlags& aspectFlags, const uint32_t& mipLevels, VkImageView& imageView) const
 {
 	VkImageViewCreateInfo viewInfo{};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1159,8 +1189,8 @@ void RenderLoop::CreateImageView(const VkImage& image, const VkFormat& format, c
 	viewInfo.subresourceRange.aspectMask = aspectFlags;
 	// ReSharper disable once CppAssignedValueIsNeverUsed
 	viewInfo.subresourceRange.baseMipLevel = 0;
-	viewInfo.subresourceRange.levelCount = 1;
-	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = mipLevels;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
 	viewInfo.subresourceRange.layerCount = 1;
 
 	if (vkCreateImageView(_device, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
@@ -1182,6 +1212,8 @@ void RenderLoop::LoadTexture(std::string filePath, VkImageView& targetView, ktxV
 	filePath.append(".ktx");
 	if (ktxTexture_CreateFromNamedFile(filePath.c_str(), createFlags, &kTexture) != KTX_error_code::KTX_SUCCESS)
 		throw std::runtime_error("Failed to create the texture from given file path!");
+
+	kTexture->generateMipmaps = true;
 
 	if (ktxTexture_VkUploadEx(kTexture, &vulkanDeviceInfo, &targetTexture, tiling, usage, layout))
 		throw std::runtime_error("Failed to upload texture to the device! (consider checking the encoding format on the relevant .ktx file)");
@@ -1208,7 +1240,8 @@ void RenderLoop::LoadTexture(std::string filePath, VkImageView& targetView, ktxV
 		throw std::runtime_error("Failed to create an image view for a texture!");
 }
 
-void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout) const
+void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout, const
+	uint32_t& mipLevels) const
 {
 	VkCommandBuffer commandBuffer;
 	VkPipelineStageFlags sourceStage;
@@ -1234,7 +1267,7 @@ void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& for
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	}
 	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.levelCount = mipLevels;
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = 1;
 	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
@@ -1277,7 +1310,7 @@ void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& for
 	EndSingleTimeCommands(commandBuffer);
 }
 
-void RenderLoop::CreateSampler(VkSampler& sampler) const
+void RenderLoop::CreateSampler(FHEImage& image) const
 {
 	VkPhysicalDeviceProperties properties{};
 	vkGetPhysicalDeviceProperties(_physicalDevice, &properties);
@@ -1299,9 +1332,9 @@ void RenderLoop::CreateSampler(VkSampler& sampler) const
 	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	samplerInfo.mipLodBias = 0.f;
 	samplerInfo.minLod = 0.f;
-	samplerInfo.maxLod = 0.f;
+	samplerInfo.maxLod = static_cast<float>(image.texture.levelCount);
 
-	if (vkCreateSampler(_device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
+	if (vkCreateSampler(_device, &samplerInfo, nullptr, &image.sampler) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create texture sampler!");
 }
 
@@ -1455,6 +1488,7 @@ void RenderLoop::SelectPhysicalDevice()
 	if (deviceCandidates.rbegin()->first > 0)
 	{
 		_physicalDevice = deviceCandidates.rbegin()->second;
+		_msaaSamples = GetMaxUsableSampleCount();
 		return;
 	}
 
@@ -1503,6 +1537,22 @@ VkFormat RenderLoop::FindDepthFormat() const
 bool RenderLoop::HasStencilComponent(const VkFormat& format)
 {
 	return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
+VkSampleCountFlagBits RenderLoop::GetMaxUsableSampleCount() const
+{
+	VkPhysicalDeviceProperties physicalDeviceProperties;
+	vkGetPhysicalDeviceProperties(_physicalDevice, &physicalDeviceProperties);
+
+	const VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+
+	if (counts & VK_SAMPLE_COUNT_64_BIT) return VK_SAMPLE_COUNT_64_BIT;
+	if (counts & VK_SAMPLE_COUNT_32_BIT) return VK_SAMPLE_COUNT_32_BIT;
+	if (counts & VK_SAMPLE_COUNT_16_BIT) return VK_SAMPLE_COUNT_16_BIT;
+	if (counts & VK_SAMPLE_COUNT_8_BIT) return VK_SAMPLE_COUNT_8_BIT;
+	if (counts & VK_SAMPLE_COUNT_4_BIT) return VK_SAMPLE_COUNT_4_BIT;
+	if (counts & VK_SAMPLE_COUNT_2_BIT) return VK_SAMPLE_COUNT_2_BIT;
+	return VK_SAMPLE_COUNT_1_BIT;
 }
 
 
@@ -1664,6 +1714,10 @@ void RenderLoop::CleanupSwapChain() const
 	vkDestroyImageView(_device, _depthImageView, nullptr);
 	vkDestroyImage(_device, _depthImage, nullptr);
 	vkFreeMemory(_device, _depthImageMemory, nullptr);
+
+	vkDestroyImageView(_device, _colorImageView, nullptr);
+	vkDestroyImage(_device, _colorImage, nullptr);
+	vkFreeMemory(_device, _colorImageMemory, nullptr);
 
 	for (const auto framebuffer : _swapChainFrameBuffers)
 	{
