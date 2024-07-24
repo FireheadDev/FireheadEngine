@@ -472,12 +472,12 @@ void RenderLoop::CreateGraphicsPipeline()
 	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	fragShaderStageInfo.module = fragShaderModule;
 	fragShaderStageInfo.pName = "main";
-	std::vector<VkPipelineShaderStageCreateInfo> shaderStages = {
+	const std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages = {
 		vertShaderStageInfo,
 		fragShaderStageInfo
 	};
 
-	std::vector<VkDynamicState> dynamicStates = {
+	const std::array<VkDynamicState, 2> dynamicStates = {
 		VK_DYNAMIC_STATE_VIEWPORT,
 		VK_DYNAMIC_STATE_SCISSOR,
 	};
