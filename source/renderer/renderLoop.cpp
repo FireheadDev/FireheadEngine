@@ -640,7 +640,7 @@ void RenderLoop::CreateDepthResources()
 	CreateImage(_swapChainExtent.width, _swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _depthImage, _depthImageMemory);
 	CreateImageView(_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, _depthImageView);
 
-	TransitionImageLayout(_depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	TransitionImageLayout(_depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 }
 
 void RenderLoop::CreateTextures()
@@ -1183,6 +1183,8 @@ void RenderLoop::LoadTexture(std::string filePath, VkImageView& targetView, ktxV
 	if (ktxTexture_CreateFromNamedFile(filePath.c_str(), createFlags, &kTexture) != KTX_error_code::KTX_SUCCESS)
 		throw std::runtime_error("Failed to create the texture from given file path!");
 
+	kTexture->generateMipmaps = true;
+
 	if (ktxTexture_VkUploadEx(kTexture, &vulkanDeviceInfo, &targetTexture, tiling, usage, layout))
 		throw std::runtime_error("Failed to upload texture to the device! (consider checking the encoding format on the relevant .ktx file)");
 
@@ -1208,7 +1210,8 @@ void RenderLoop::LoadTexture(std::string filePath, VkImageView& targetView, ktxV
 		throw std::runtime_error("Failed to create an image view for a texture!");
 }
 
-void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout) const
+void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout, const
+                                       uint32_t& mipLevels) const
 {
 	VkCommandBuffer commandBuffer;
 	VkPipelineStageFlags sourceStage;
@@ -1234,7 +1237,7 @@ void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& for
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	}
 	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.levelCount = mipLevels;
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = 1;
 	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
