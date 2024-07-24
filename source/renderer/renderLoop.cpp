@@ -645,11 +645,9 @@ void RenderLoop::CreateDepthResources()
 
 void RenderLoop::CreateTextures()
 {
-	CreateSampler(_mainSampler);
-
 	_textures.resize(1);
 	LoadTexture(TEXTURE_PATH, _textures[0].view, _textures[0].texture);
-	_textures[0].sampler = _mainSampler;
+	CreateSampler(_textures[0]);
 }
 
 void RenderLoop::LoadModel()
@@ -1280,7 +1278,7 @@ void RenderLoop::TransitionImageLayout(const VkImage& image, const VkFormat& for
 	EndSingleTimeCommands(commandBuffer);
 }
 
-void RenderLoop::CreateSampler(VkSampler& sampler) const
+void RenderLoop::CreateSampler(FHEImage& image) const
 {
 	VkPhysicalDeviceProperties properties{};
 	vkGetPhysicalDeviceProperties(_physicalDevice, &properties);
@@ -1302,9 +1300,9 @@ void RenderLoop::CreateSampler(VkSampler& sampler) const
 	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	samplerInfo.mipLodBias = 0.f;
 	samplerInfo.minLod = 0.f;
-	samplerInfo.maxLod = 0.f;
+	samplerInfo.maxLod = static_cast<float>(image.texture.levelCount);
 
-	if (vkCreateSampler(_device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
+	if (vkCreateSampler(_device, &samplerInfo, nullptr, &image.sampler) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create texture sampler!");
 }
 
