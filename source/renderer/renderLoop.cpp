@@ -456,8 +456,8 @@ void RenderLoop::CreateDescriptorSetLayout()
 
 void RenderLoop::CreateGraphicsPipeline()
 {
-	const auto vertShaderCode = ReadFile("../source/renderer/shaders/vert.spv");
-	const auto fragShaderCode = ReadFile("../source/renderer/shaders/frag.spv");
+	const auto vertShaderCode = ReadFile("../shaders/shader_vert.spv");
+	const auto fragShaderCode = ReadFile("../shaders/shader_frag.spv");
 
 	const VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
 	const VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);

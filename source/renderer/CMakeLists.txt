@@ -5,14 +5,23 @@ file(
     GLOB_RECURSE RENDERER_SRC CONFIGURE_DEPENDS
     ./*.h
     ./*.cpp
-    ./shaders/*.vert
-    ./shaders/*.frag
+    ../../shaders/*.vert
+    ../../shaders/*.tesc
+    ../../shaders/*.tese
+    ../../shaders/*.geom
+    ../../shaders/*.frag
+    ../../shaders/*.comp
 )
 
+# File in file to reduce redundancy?
 file(
 	GLOB_RECURSE SHADER_FILES CONFIGURE_DEPENDS
-    ./shaders/*.vert
-    ./shaders/*.frag
+    ../../shaders/*.vert
+    ../../shaders/*.tesc
+    ../../shaders/*.tese
+    ../../shaders/*.geom
+    ../../shaders/*.frag
+    ../../shaders/*.comp
 )
 
 set_source_files_properties( ${SHADER_FILES} PROPERTIES
