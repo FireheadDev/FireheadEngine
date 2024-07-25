@@ -104,8 +104,6 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_currentFrame = 0;
 	_frameBufferResized = false;
 
-	_mainSampler = nullptr;
-
 	printf("Rendering Loop created\n");
 }
 
@@ -676,9 +674,10 @@ void RenderLoop::CreateColorResources()
 
 void RenderLoop::CreateTextures()
 {
-	_textures.resize(1);
-	LoadTexture(TEXTURE_PATH, _textures[0].view, _textures[0].texture);
-	CreateSampler(_textures[0]);
+	_models.resize(1);
+	_models[0].textures.resize(1);
+	LoadTexture(TEXTURE_PATH, _models[0].textures[0].view, _models[0].textures[0].texture);
+	CreateSampler(_models[0].textures[0]);
 }
 
 void RenderLoop::LoadModel()
@@ -711,17 +710,17 @@ void RenderLoop::LoadModel()
 
 			if (uniqueVertices.count(vertex) == 0)
 			{
-				uniqueVertices[vertex] = static_cast<uint32_t>(_vertices.size());
-				_vertices.push_back(vertex);
+				uniqueVertices[vertex] = static_cast<uint32_t>(_models[0].vertices.size());
+				_models[0].vertices.push_back(vertex);
 			}
-			_indices.push_back(uniqueVertices[vertex]);
+			_models[0].indices.push_back(uniqueVertices[vertex]);
 		}
 	}
 }
 
 void RenderLoop::CreateVertexBuffer()
 {
-	const VkDeviceSize bufferSize = sizeof(_vertices[0]) * _vertices.size();
+	const VkDeviceSize bufferSize = sizeof(_models[0].vertices[0]) * _models[0].vertices.size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -729,7 +728,7 @@ void RenderLoop::CreateVertexBuffer()
 
 	void* data;
 	vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, _vertices.data(), bufferSize);
+	memcpy(data, _models[0].vertices.data(), bufferSize);
 	vkUnmapMemory(_device, stagingBufferMemory);
 
 	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _vertexBuffer, _vertexBufferMemory);
@@ -742,7 +741,7 @@ void RenderLoop::CreateVertexBuffer()
 
 void RenderLoop::CreateIndexBuffer()
 {
-	const VkDeviceSize bufferSize = sizeof(_indices[0]) * _indices.size();
+	const VkDeviceSize bufferSize = sizeof(_models[0].indices[0]) * _models[0].indices.size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -750,7 +749,7 @@ void RenderLoop::CreateIndexBuffer()
 
 	void* data;
 	vkMapMemory(_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, _indices.data(), bufferSize);
+	memcpy(data, _models[0].indices.data(), bufferSize);
 	vkUnmapMemory(_device, stagingBufferMemory);
 
 	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _indexBuffer, _indexBufferMemory);
@@ -820,8 +819,8 @@ void RenderLoop::CreateDescriptorSets()
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		// TODO: Temporarily hard-coded
-		imageInfo.imageView = _textures[0].view;
-		imageInfo.sampler = _textures[0].sampler;
+		imageInfo.imageView = _models[0].textures[0].view;
+		imageInfo.sampler = _models[0].textures[0].sampler;
 
 		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1603,7 +1602,7 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 	vkCmdBindIndexBuffer(commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[_currentFrame], 0, nullptr);
 
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(_models[0].indices.size()), 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(commandBuffer);
 
@@ -1730,6 +1729,19 @@ void RenderLoop::CleanupSwapChain() const
 	vkDestroySwapchainKHR(_device, _swapChain, nullptr);
 }
 
+void RenderLoop::CleanupModels() const
+{
+	for (const auto& model : _models)
+	{
+		for (const auto& texture : model.textures)
+		{
+			vkDestroyImageView(_device, texture.view, nullptr);
+			ktxVulkanTexture_Destruct(const_cast<ktxVulkanTexture*>(&texture.texture), _device, nullptr);
+			vkDestroySampler(_device, texture.sampler, nullptr);
+		}
+	}
+}
+
 void RenderLoop::Cleanup() const
 {
 	if (VALIDATION_LAYERS_ENABLED)
@@ -1756,14 +1768,7 @@ void RenderLoop::Cleanup() const
 	}
 
 	// Textures
-	for (const auto& texture : _textures)
-	{
-		vkDestroyImageView(_device, texture.view, nullptr);
-		ktxVulkanTexture_Destruct(const_cast<ktxVulkanTexture*>(&texture.texture), _device, nullptr);
-		if (texture.sampler != _mainSampler)
-			vkDestroySampler(_device, texture.sampler, nullptr);
-	}
-	vkDestroySampler(_device, _mainSampler, nullptr);
+	CleanupModels();
 
 	vkDestroyDescriptorPool(_device, _descriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(_device, _descriptorSetLayout, nullptr);
