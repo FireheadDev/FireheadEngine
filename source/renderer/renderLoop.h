@@ -20,7 +20,7 @@
 #include <ktxvulkan.h>
 
 #include "FHEImage.h"
-#include "Vertex.h"
+#include "Model.h"
 #include "../core/FHEMacros.h"
 
 struct SwapChainSupportDetails;
@@ -95,10 +95,10 @@ extern "C"
 		std::vector<VkFence> _inFlightFences;
 		bool _frameBufferResized;
 
-		std::vector<Vertex> _vertices;
-		std::vector<uint32_t> _indices;
-		VkSampler _mainSampler;
-		std::vector<FHEImage> _textures;
+		std::vector<Model> _models;
+		//std::vector<Vertex> _vertices;
+		//std::vector<uint32_t> _indices;
+		//std::vector<FHEImage> _textures;
 
 #pragma region Compile-Time Static Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
@@ -188,6 +188,7 @@ extern "C"
 
 #pragma region Cleanup
 		void CleanupSwapChain() const;
+		void CleanupModels() const;
 		void Cleanup() const;
 #pragma endregion
 
