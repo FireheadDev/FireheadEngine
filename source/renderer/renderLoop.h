@@ -17,7 +17,9 @@
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 //#include <GLFW/glfw3native.h>
+#include <chrono>
 #include <ktxvulkan.h>
+#include <memory>
 
 #include "FHEImage.h"
 #include "Model.h"
@@ -72,6 +74,13 @@ extern "C"
 		VkBuffer _indexBuffer;
 		VkDeviceMemory _indexBufferMemory;
 
+		void* _transformStagingData;
+		VkDeviceSize _transformBufferSize;
+		VkBuffer _transformStagingBuffer;
+		VkDeviceMemory _transformStagingBufferMemory;
+		VkBuffer _transformBuffer;
+		VkDeviceMemory _transformBufferMemory;
+
 		std::vector<VkBuffer> _uniformBuffers;
 		std::vector<VkDeviceMemory> _uniformBuffersMemory;
 		std::vector<void*> _uniformBuffersMapped;
@@ -89,6 +98,8 @@ extern "C"
 
 		VkSampleCountFlagBits _msaaSamples = VK_SAMPLE_COUNT_1_BIT;
 
+		// TODO: Move into separate timing class. Potentially move the semaphores and fences there as well?
+		std::chrono::time_point<std::chrono::steady_clock> _lastTime;
 		uint32_t _currentFrame;
 		std::vector<VkSemaphore> _imageAvailableSemaphores;
 		std::vector<VkSemaphore> _renderFinishedSemaphores;
@@ -96,15 +107,15 @@ extern "C"
 		bool _frameBufferResized;
 
 		std::vector<Model> _models;
-		//std::vector<Vertex> _vertices;
-		//std::vector<uint32_t> _indices;
-		//std::vector<FHEImage> _textures;
+		std::unordered_map<const Model*, std::shared_ptr<std::vector<glm::mat4>>> _modelTransforms;
 
 #pragma region Compile-Time Static Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
 		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
 		const static std::vector<const char*> DEVICE_EXTENSIONS;
 		const static uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+		const static uint32_t FISH_WIDTH_COUNT = 11;
+		const static uint32_t FISH_DEPTH_COUNT = 9;
 		const static std::string MODEL_PATH;
 		const static std::string TEXTURE_PATH;
 #pragma endregion
@@ -128,9 +139,10 @@ extern "C"
 		void CreateDepthResources();
 		void CreateColorResources();
 		void CreateTextures();
-		void LoadModel();
+		void LoadModels();
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
+		void CreateTransformBuffer();
 		void CreateUniformBuffers();
 		void CreateDescriptorPool();
 		void CreateDescriptorSets();
@@ -155,6 +167,7 @@ extern "C"
 		void CreateBuffer(const VkDeviceSize& size, const VkBufferUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) const;
 		void CopyBuffer(const VkBuffer& srcBuffer, const VkBuffer& dstBuffer, const VkDeviceSize& size) const;
 		void CopyBufferToImage(const VkBuffer& buffer, const VkImage& image, const uint32_t& width, const uint32_t& height) const;
+		void CopyTransformsToDevice();
 		void CreateImage(const uint32_t& width, const uint32_t& height, const uint32_t& mipLevels, const VkSampleCountFlagBits& numSample, const VkFormat& format, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkImage& image, VkDeviceMemory& imageMemory) const;
 		void CreateImageView(const VkImage& image, const VkFormat& format, const VkImageAspectFlags& aspectFlags, const
 		                     uint32_t& mipLevels, VkImageView& imageView) const;
@@ -182,7 +195,7 @@ extern "C"
 #pragma region In Loop
 		void RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex) const;
 		void DrawFrame();
-		void UpdateUniformBuffer(const uint32_t& currentImage) const;
+		void UpdateUniformBuffer();
 		void MainLoop();
 #pragma endregion
 

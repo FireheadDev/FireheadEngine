@@ -17,10 +17,11 @@
 #include "QueueFamilyIndices.h"
 #include "SwapChainSupportDetails.h"
 #define TINYOBJLOADER_IMPLEMENTATION
+#include <memory>
 #include <unordered_map>
 
+#include "Camera.h"
 #include "tiny_obj_loader.h"
-#include "UniformBufferObject.h"
 #include "Vertex.h"
 #include "../logger/Logger.h"
 
@@ -91,6 +92,13 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_indexBuffer = nullptr;
 	_indexBufferMemory = nullptr;
 
+	_transformStagingData = nullptr;
+	_transformBufferSize = 0;
+	_transformStagingBuffer = nullptr;
+	_transformStagingBufferMemory = nullptr;
+	_transformBuffer = nullptr;
+	_transformBufferMemory = nullptr;
+
 	_depthImage = nullptr;
 	_depthImageMemory = nullptr;
 	_depthImageView = nullptr;
@@ -146,9 +154,10 @@ void RenderLoop::InitVulkan()
 	CreateColorResources();
 	CreateFrameBuffers();
 	CreateTextures();
-	LoadModel();
+	LoadModels();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
+	CreateTransformBuffer();
 	CreateUniformBuffers();
 	CreateDescriptorPool();
 	CreateDescriptorSets();
@@ -428,21 +437,28 @@ void RenderLoop::CreateRenderPass()
 
 void RenderLoop::CreateDescriptorSetLayout()
 {
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	uboLayoutBinding.pImmutableSamplers = nullptr;
+	VkDescriptorSetLayoutBinding cameraBinding{};
+	cameraBinding.binding = 0;
+	cameraBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	cameraBinding.descriptorCount = 1;
+	cameraBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	cameraBinding.pImmutableSamplers = nullptr;
 
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
-	samplerLayoutBinding.descriptorCount = 1;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	samplerLayoutBinding.pImmutableSamplers = nullptr;
-	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	VkDescriptorSetLayoutBinding transformBinding{};
+	transformBinding.binding = 1;
+	transformBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	transformBinding.descriptorCount = 1;
+	transformBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	transformBinding.pImmutableSamplers = nullptr;
 
-	const std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+	VkDescriptorSetLayoutBinding samplerBinding{};
+	samplerBinding.binding = 2;
+	samplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerBinding.descriptorCount = 1;
+	samplerBinding.pImmutableSamplers = nullptr;
+	samplerBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	const std::array<VkDescriptorSetLayoutBinding, 3> bindings = { cameraBinding, transformBinding, samplerBinding };
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -680,7 +696,7 @@ void RenderLoop::CreateTextures()
 	CreateSampler(_models[0].textures[0]);
 }
 
-void RenderLoop::LoadModel()
+void RenderLoop::LoadModels()
 {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -714,6 +730,28 @@ void RenderLoop::LoadModel()
 				_models[0].vertices.push_back(vertex);
 			}
 			_models[0].indices.push_back(uniqueVertices[vertex]);
+		}
+	}
+
+	for (auto& model : _models)
+	{
+		_modelTransforms[&model] = std::make_shared<std::vector<glm::mat4>>();
+		_modelTransforms[&model]->resize(FISH_WIDTH_COUNT * FISH_DEPTH_COUNT);
+
+		for (size_t x = 0; x < FISH_WIDTH_COUNT; ++x)
+		{
+			for (size_t z = 0; z < FISH_DEPTH_COUNT; ++z)
+			{
+				glm::mat4 objectTransform
+				{
+					1, 0, 0, 0,
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					0, 0, 0, 1,
+				};
+				objectTransform = glm::rotate(objectTransform, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
+				(*_modelTransforms[&model])[0] = objectTransform;
+			}
 		}
 	}
 }
@@ -760,10 +798,25 @@ void RenderLoop::CreateIndexBuffer()
 	vkFreeMemory(_device, stagingBufferMemory, nullptr);
 }
 
+void RenderLoop::CreateTransformBuffer()
+{
+	for (auto model = _modelTransforms.begin(); model != _modelTransforms.end(); ++model)
+	{
+		_transformBufferSize += model->second->size();
+	}
+	_transformBufferSize *= sizeof(glm::mat4);
+
+	CreateBuffer(_transformBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _transformStagingBuffer, _transformStagingBufferMemory);
+	CreateBuffer(_transformBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _transformBuffer, _transformBufferMemory);
+	
+	vkMapMemory(_device, _transformStagingBufferMemory, 0, _transformBufferSize, 0, &_transformStagingData);
+	CopyTransformsToDevice();
+}
+
 void RenderLoop::CreateUniformBuffers()
 {
 	// ReSharper disable once CppTooWideScope
-	const VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+	const VkDeviceSize bufferSize = sizeof(Camera);
 
 	_uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 	_uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
@@ -779,11 +832,13 @@ void RenderLoop::CreateUniformBuffers()
 
 void RenderLoop::CreateDescriptorPool()
 {
-	std::array<VkDescriptorPoolSize, 2> poolSizes{};
+	std::array<VkDescriptorPoolSize, 3> poolSizes{};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = MAX_FRAMES_IN_FLIGHT;
-	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	poolSizes[1].descriptorCount = MAX_FRAMES_IN_FLIGHT;
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSizes[2].descriptorCount = MAX_FRAMES_IN_FLIGHT;
 
 	VkDescriptorPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -811,10 +866,13 @@ void RenderLoop::CreateDescriptorSets()
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 	{
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = _uniformBuffers[i];
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UniformBufferObject);
+		std::array<VkDescriptorBufferInfo, 2> bufferInfo{};
+		bufferInfo[0].buffer = _uniformBuffers[i];
+		bufferInfo[0].offset = 0;
+		bufferInfo[0].range = sizeof(Camera);
+		bufferInfo[1].buffer = _transformBuffer;
+		bufferInfo[1].offset = 0;
+		bufferInfo[1].range = VK_WHOLE_SIZE;
 
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -822,14 +880,14 @@ void RenderLoop::CreateDescriptorSets()
 		imageInfo.imageView = _models[0].textures[0].view;
 		imageInfo.sampler = _models[0].textures[0].sampler;
 
-		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+		std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = _descriptorSets[i];
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &bufferInfo;
+		descriptorWrites[0].pBufferInfo = &bufferInfo[0];  // NOLINT(readability-container-data-pointer)
 		descriptorWrites[0].pImageInfo = nullptr;
 		descriptorWrites[0].pTexelBufferView = nullptr;
 
@@ -837,14 +895,23 @@ void RenderLoop::CreateDescriptorSets()
 		descriptorWrites[1].dstSet = _descriptorSets[i];
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pBufferInfo = nullptr;
-		descriptorWrites[1].pImageInfo = &imageInfo;
+		descriptorWrites[1].pBufferInfo = &bufferInfo[1];
+		descriptorWrites[1].pImageInfo = nullptr;
 		descriptorWrites[1].pTexelBufferView = nullptr;
 
-		vkUpdateDescriptorSets(_device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].dstSet = _descriptorSets[i];
+		descriptorWrites[2].dstBinding = 2;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[2].descriptorCount = 1;
+		descriptorWrites[2].pBufferInfo = nullptr;
+		descriptorWrites[2].pImageInfo = &imageInfo;
+		descriptorWrites[2].pTexelBufferView = nullptr;
 
+		vkUpdateDescriptorSets(_device, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 	}
 }
 
@@ -1142,6 +1209,18 @@ void RenderLoop::CopyBufferToImage(const VkBuffer& buffer, const VkImage& image,
 	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 	EndSingleTimeCommands(commandBuffer);
+}
+
+void RenderLoop::CopyTransformsToDevice()
+{
+	size_t offset = 0;
+	for (auto model = _modelTransforms.begin(); model != _modelTransforms.end(); ++model)
+	{
+		const size_t innerSize = model->second->size() * sizeof(glm::mat4);
+		memcpy(static_cast<char*>(_transformStagingData) + offset, model->second->data(), innerSize);
+		offset += innerSize;
+	}
+	CopyBuffer(_transformStagingBuffer, _transformBuffer, _transformBufferSize);
 }
 
 void RenderLoop::CreateImage(const uint32_t& width, const uint32_t& height, const uint32_t& mipLevels, const VkSampleCountFlagBits& numSample, const VkFormat& format, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkImage& image, VkDeviceMemory& imageMemory) const
@@ -1628,7 +1707,7 @@ void RenderLoop::DrawFrame()
 	vkResetFences(_device, 1, &_inFlightFences[_currentFrame]);
 	vkResetCommandBuffer(_commandBuffers[_currentFrame], 0);
 	RecordCommandBuffer(_commandBuffers[_currentFrame], imageIndex);
-	UpdateUniformBuffer(_currentFrame);
+	UpdateUniformBuffer();
 
 	const VkSemaphore waitSemaphores[] = { _imageAvailableSemaphores[_currentFrame] };
 	const VkSemaphore signalSemaphores[] = { _renderFinishedSemaphores[_currentFrame] };
@@ -1670,31 +1749,28 @@ void RenderLoop::DrawFrame()
 	_currentFrame = (_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void RenderLoop::UpdateUniformBuffer(const uint32_t& currentImage) const
+void RenderLoop::UpdateUniformBuffer()
 {
-	static auto startTime = std::chrono::high_resolution_clock::now();
-
+	// Timing
 	const auto currentTime = std::chrono::high_resolution_clock::now();
-	const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - _lastTime).count();
+	_lastTime = currentTime;
 
-	glm::mat4 objectTransform
+	// Update transforms
+	for (size_t i = 0; i < _modelTransforms[_models.data()]->size(); ++i)
 	{
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1,
-	};
-	objectTransform = rotate(objectTransform, glm::radians(45.f), glm::vec3(0.f, 0.f, 1.f));
-	objectTransform = rotate(objectTransform, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+		(*_modelTransforms[_models.data()])[i] = rotate((*_modelTransforms[_models.data()])[i], time * glm::radians(-180.f), glm::vec3(0.f, 1.f, 0.f));
+	}
 
-	UniformBufferObject ubo{};
-	ubo.model = rotate(objectTransform, time * glm::radians(270.f), glm::vec3(0.f, 1.f, 0.f));
-	ubo.view = lookAt(glm::vec3(2.f, 2.f, 2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
-	ubo.projection = glm::perspective(glm::radians(45.f), static_cast<float>(_swapChainExtent.width) / static_cast<float>(_swapChainExtent.height), 0.1f, 10.f);
+	// TODO: Move camera details to a member variable to avoid recalculating the perspective unnecessarily.
+	Camera camera{};
+	camera.view = lookAt(glm::vec3(0.f, 2.f, -2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+	camera.projection = glm::perspective(glm::radians(45.f), static_cast<float>(_swapChainExtent.width) / static_cast<float>(_swapChainExtent.height), 0.1f, 100.f);
 	// Invert y coordinates for change from OpenGL to Vulkan
-	ubo.projection[1][1] *= -1;
+	camera.projection[1][1] *= -1;
 
-	memcpy(_uniformBuffersMapped[_currentFrame], &ubo, sizeof(ubo));
+	memcpy(_uniformBuffersMapped[_currentFrame], &camera, sizeof(camera));
+	CopyTransformsToDevice();
 }
 
 void RenderLoop::MainLoop()
@@ -1742,6 +1818,7 @@ void RenderLoop::CleanupModels() const
 	}
 }
 
+// TODO: Sort function into smaller functions like CleanupSwapChain to better label what is getting cleaned up and when.
 void RenderLoop::Cleanup() const
 {
 	if (VALIDATION_LAYERS_ENABLED)
@@ -1760,6 +1837,12 @@ void RenderLoop::Cleanup() const
 	vkFreeMemory(_device, _vertexBufferMemory, nullptr);
 	vkDestroyBuffer(_device, _indexBuffer, nullptr);
 	vkFreeMemory(_device, _indexBufferMemory, nullptr);
+
+	vkUnmapMemory(_device, _transformStagingBufferMemory);
+	vkDestroyBuffer(_device, _transformStagingBuffer, nullptr);
+	vkFreeMemory(_device, _transformStagingBufferMemory, nullptr);
+	vkDestroyBuffer(_device, _transformBuffer, nullptr);
+	vkFreeMemory(_device, _transformBufferMemory, nullptr);
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 	{
