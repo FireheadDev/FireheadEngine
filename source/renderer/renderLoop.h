@@ -21,6 +21,7 @@
 #include <ktxvulkan.h>
 #include <memory>
 
+#include "Camera.h"
 #include "FHEImage.h"
 #include "Model.h"
 #include "../core/FHEMacros.h"
@@ -106,6 +107,8 @@ extern "C"
 		std::vector<VkFence> _inFlightFences;
 		bool _frameBufferResized;
 
+		Camera _camera;
+
 		std::vector<Model> _models;
 		std::unordered_map<const Model*, std::shared_ptr<std::vector<glm::mat4>>> _modelTransforms;
 
@@ -141,6 +144,7 @@ extern "C"
 		void CreateColorResources();
 		void CreateTextures();
 		void LoadModels();
+		void SetupCamera();
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateTransformBuffer();

@@ -20,9 +20,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "Camera.h"
 #include "tiny_obj_loader.h"
-#include "Vertex.h"
 #include "../logger/Logger.h"
 
 const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
@@ -112,6 +110,8 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_currentFrame = 0;
 	_frameBufferResized = false;
 
+	_camera = {};
+
 	printf("Rendering Loop created\n");
 }
 
@@ -155,6 +155,7 @@ void RenderLoop::InitVulkan()
 	CreateFrameBuffers();
 	CreateTextures();
 	LoadModels();
+	SetupCamera();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateTransformBuffer();
@@ -758,6 +759,14 @@ void RenderLoop::LoadModels()
 			}
 		}
 	}
+}
+
+void RenderLoop::SetupCamera()
+{
+	_camera.view = lookAt(glm::vec3(0.f, 20.f, -15.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+	_camera.projection = glm::perspective(glm::radians(45.f), static_cast<float>(_swapChainExtent.width) / static_cast<float>(_swapChainExtent.height), 0.1f, 100.f);
+	// Invert y coordinates for change from OpenGL to Vulkan
+	_camera.projection[1][1] *= -1;
 }
 
 void RenderLoop::CreateVertexBuffer()
@@ -1773,14 +1782,8 @@ void RenderLoop::UpdateUniformBuffer()
 		(*_modelTransforms[_models.data()])[i] = rotate((*_modelTransforms[_models.data()])[i], time * glm::radians(-180.f), glm::vec3(0.f, 1.f, 0.f));
 	}
 
-	// TODO: Move camera details to a member variable to avoid recalculating the perspective unnecessarily.
-	Camera camera{};
-	camera.view = lookAt(glm::vec3(0.f, 20.f, -15.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
-	camera.projection = glm::perspective(glm::radians(45.f), static_cast<float>(_swapChainExtent.width) / static_cast<float>(_swapChainExtent.height), 0.1f, 100.f);
-	// Invert y coordinates for change from OpenGL to Vulkan
-	camera.projection[1][1] *= -1;
-
-	memcpy(_uniformBuffersMapped[_currentFrame], &camera, sizeof(camera));
+	
+	memcpy(_uniformBuffersMapped[_currentFrame], &_camera, sizeof(_camera));
 	CopyTransformsToDevice();
 }
 
