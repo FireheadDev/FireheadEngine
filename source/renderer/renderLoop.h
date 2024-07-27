@@ -112,6 +112,7 @@ extern "C"
 #pragma region Compile-Time Static Members
 		const static std::vector<const char*> VALIDATION_LAYERS;
 		const static bool VALIDATION_LAYERS_ENABLED = IS_DEBUGGING_TERNARY(true, false);
+		const static bool RENDER_ONLY_FIRST_INSTANCE = false;
 		const static std::vector<const char*> DEVICE_EXTENSIONS;
 		const static uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 		const static uint32_t FISH_WIDTH_COUNT = 11;
@@ -169,12 +170,10 @@ extern "C"
 		void CopyBufferToImage(const VkBuffer& buffer, const VkImage& image, const uint32_t& width, const uint32_t& height) const;
 		void CopyTransformsToDevice();
 		void CreateImage(const uint32_t& width, const uint32_t& height, const uint32_t& mipLevels, const VkSampleCountFlagBits& numSample, const VkFormat& format, const VkImageTiling& tiling, const VkImageUsageFlags& usage, const VkMemoryPropertyFlags& properties, VkImage& image, VkDeviceMemory& imageMemory) const;
-		void CreateImageView(const VkImage& image, const VkFormat& format, const VkImageAspectFlags& aspectFlags, const
-		                     uint32_t& mipLevels, VkImageView& imageView) const;
+		void CreateImageView(const VkImage& image, const VkFormat& format, const VkImageAspectFlags& aspectFlags, const uint32_t& mipLevels, VkImageView& imageView) const;
 		// TODO: Make parameters aside from the first 3 into a struct to simplify signature
 		void LoadTexture(std::string filePath, VkImageView& targetView, ktxVulkanTexture& targetTexture, const VkImageTiling& tiling = VK_IMAGE_TILING_OPTIMAL, const VkImageUsageFlags& usage = VK_IMAGE_USAGE_SAMPLED_BIT, const VkImageLayout& layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, const ktxTextureCreateFlagBits& createFlags = KTX_TEXTURE_CREATE_NO_FLAGS) const;
-		void TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout, const
-		                           uint32_t& mipLevels) const;
+		void TransitionImageLayout(const VkImage& image, const VkFormat& format, const VkImageLayout& oldLayout, const VkImageLayout& newLayout, const uint32_t& mipLevels) const;
 		void CreateSampler(FHEImage& image) const;
 
 		void BeginSingleTimeCommand(VkCommandBuffer& commandBuffer) const;
@@ -193,7 +192,7 @@ extern "C"
 #pragma endregion
 
 #pragma region In Loop
-		void RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex) const;
+		void RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex);
 		void DrawFrame();
 		void UpdateUniformBuffer();
 		void MainLoop();
