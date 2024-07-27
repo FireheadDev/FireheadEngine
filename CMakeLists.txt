@@ -73,6 +73,7 @@ target_include_directories(${MODULE_NAME}
 	PUBLIC ./source/core
 	PUBLIC ./source/logger
 	PUBLIC ./source/renderer
+	PUBLIC ./source/input
 	${Vulkan_INCLUDE_DIRS}
 	PUBLIC ./libraries/glfw
 	PUBLIC ./libraries/glm
@@ -84,12 +85,14 @@ target_include_directories(${MODULE_NAME}
 add_subdirectory(./source/core)
 add_subdirectory(./source/logger)
 add_subdirectory(./source/renderer)
+add_subdirectory(./source/input)
 
 target_link_directories(
 	${MODULE_NAME}
 	PRIVATE ./source/core
 	PRIVATE ./source/logger
 	PRIVATE ./source/renderer
+	PRIVATE ./source/input
 	PUBLIC ${Vulkan_LIBRARIES}
 	PRIVATE ./libraries/glfw
 	PRIVATE ./libraries/glm
@@ -101,6 +104,7 @@ target_link_libraries(${MODULE_NAME}
 	Core
 	Logger
 	Renderer
+	Input
 )
 
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT App)
