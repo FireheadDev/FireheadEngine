@@ -26,6 +26,7 @@
 #include "Model.h"
 #include "../core/FHEMacros.h"
 
+class InputManager;
 struct SwapChainSupportDetails;
 struct QueueFamilyIndices;
 
@@ -107,6 +108,7 @@ extern "C"
 		std::vector<VkFence> _inFlightFences;
 		bool _frameBufferResized;
 
+		InputManager* _inputManager;
 		Camera _camera;
 
 		std::vector<Model> _models;
@@ -129,6 +131,7 @@ extern "C"
 		void InitVulkan();
 
 		static void FrameBufferResizeCallback(GLFWwindow* window, int width, int height);
+		static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 		void CreateSurface();
 		void CreateInstance();

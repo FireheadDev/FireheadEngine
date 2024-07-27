@@ -21,6 +21,7 @@
 #include <unordered_map>
 
 #include "tiny_obj_loader.h"
+#include "../input/InputManager.h"
 #include "../logger/Logger.h"
 
 const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
@@ -110,6 +111,7 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_currentFrame = 0;
 	_frameBufferResized = false;
 
+	_inputManager = nullptr;
 	_camera = {};
 
 	printf("Rendering Loop created\n");
@@ -134,6 +136,9 @@ void RenderLoop::InitWindow()
 	_window = glfwCreateWindow(_windowWidth, _windowHeight, _windowName.data(), nullptr, nullptr);
 	glfwSetWindowUserPointer(_window, this);
 	glfwSetFramebufferSizeCallback(_window, FrameBufferResizeCallback);
+
+	_inputManager = InputManager::GetInstance(_window);
+	glfwSetKeyCallback(_window, KeyCallback);
 }
 
 void RenderLoop::InitVulkan()
@@ -168,8 +173,14 @@ void RenderLoop::InitVulkan()
 
 void RenderLoop::FrameBufferResizeCallback(GLFWwindow* window, int width, int height)
 {
-	const auto app = static_cast<RenderLoop*>(glfwGetWindowUserPointer(window));
-	app->_frameBufferResized = true;
+	const auto self = static_cast<RenderLoop*>(glfwGetWindowUserPointer(window));
+	self->_frameBufferResized = true;
+}
+
+void RenderLoop::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	const auto self = static_cast<RenderLoop*>(glfwGetWindowUserPointer(window));
+	(void)self->_inputManager->HandleInputEvent(window, key, scancode, action, mods);
 }
 
 void RenderLoop::CreateSurface()
@@ -986,6 +997,8 @@ void RenderLoop::RecreateSwapChain()
 	CreateDepthResources();
 	CreateColorResources();
 	CreateFrameBuffers();
+
+	SetupCamera();
 }
 
 void RenderLoop::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
