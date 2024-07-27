@@ -8,8 +8,8 @@ void HandleEnd();
 
 int main()
 {
-	const std::string windowName{ "Hello Triangle | FHE" };
-	const std::string appName{ "Hello Triangle" };
+	const std::string windowName{ "Weird Fishes | FHE" };
+	const std::string appName{ "Weird Fishes" };
 
 	try
 	{

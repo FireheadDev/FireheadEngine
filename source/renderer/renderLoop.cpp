@@ -733,8 +733,10 @@ void RenderLoop::LoadModels()
 		}
 	}
 
+	uint32_t transformCount = 0;
 	for (auto& model : _models)
 	{
+		model.transformIndex = transformCount;
 		_modelTransforms[&model] = std::make_shared<std::vector<glm::mat4>>();
 		_modelTransforms[&model]->resize(FISH_WIDTH_COUNT * FISH_DEPTH_COUNT);
 
@@ -750,7 +752,9 @@ void RenderLoop::LoadModels()
 					0, 0, 0, 1,
 				};
 				objectTransform = glm::rotate(objectTransform, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
-				(*_modelTransforms[&model])[0] = objectTransform;
+				objectTransform = glm::translate(objectTransform, glm::vec3(2 * x, 0, 2 * z));
+				(*_modelTransforms[&model])[x * FISH_DEPTH_COUNT + z] = objectTransform;
+				++transformCount;
 			}
 		}
 	}
@@ -808,7 +812,7 @@ void RenderLoop::CreateTransformBuffer()
 
 	CreateBuffer(_transformBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _transformStagingBuffer, _transformStagingBufferMemory);
 	CreateBuffer(_transformBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _transformBuffer, _transformBufferMemory);
-	
+
 	vkMapMemory(_device, _transformStagingBufferMemory, 0, _transformBufferSize, 0, &_transformStagingData);
 	CopyTransformsToDevice();
 }
@@ -1634,7 +1638,7 @@ VkSampleCountFlagBits RenderLoop::GetMaxUsableSampleCount() const
 }
 
 
-void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex) const
+void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const uint32_t& imageIndex)
 {
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1681,7 +1685,14 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 	vkCmdBindIndexBuffer(commandBuffer, _indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[_currentFrame], 0, nullptr);
 
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(_models[0].indices.size()), 1, 0, 0, 0);
+	for (auto& model : _models)
+	{
+		if (!RENDER_ONLY_FIRST_INSTANCE)
+			vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.indices.size()), static_cast<uint32_t>(_modelTransforms[&model]->size()), 0, 0, 0);
+			// ReSharper disable once CppUnreachableCode
+		else if (!_modelTransforms[&model]->empty())
+			vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
+	}
 
 	vkCmdEndRenderPass(commandBuffer);
 
@@ -1764,7 +1775,7 @@ void RenderLoop::UpdateUniformBuffer()
 
 	// TODO: Move camera details to a member variable to avoid recalculating the perspective unnecessarily.
 	Camera camera{};
-	camera.view = lookAt(glm::vec3(0.f, 2.f, -2.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+	camera.view = lookAt(glm::vec3(0.f, 20.f, -15.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
 	camera.projection = glm::perspective(glm::radians(45.f), static_cast<float>(_swapChainExtent.width) / static_cast<float>(_swapChainExtent.height), 0.1f, 100.f);
 	// Invert y coordinates for change from OpenGL to Vulkan
 	camera.projection[1][1] *= -1;
