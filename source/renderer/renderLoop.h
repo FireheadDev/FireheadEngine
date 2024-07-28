@@ -44,6 +44,7 @@ extern "C"
 		std::string _appName;
 
 		GLFWwindow* _window;
+		GLFWcursor* _cursor;
 		VkInstance _instance;
 		VkPhysicalDevice _physicalDevice;
 		VkDevice _device;
@@ -131,8 +132,11 @@ extern "C"
 		void InitWindow();
 		void InitVulkan();
 
+#pragma region Callbacks
 		static void FrameBufferResizeCallback(GLFWwindow* window, int width, int height);
 		static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+		static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+#pragma endregion
 
 		void CreateSurface();
 		void CreateInstance();

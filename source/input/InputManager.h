@@ -17,19 +17,31 @@ extern "C"
 	class InputManager
 	{
 	public:
-		INPUT_INPUTMANAGER_API static InputManager* GetInstance(GLFWwindow* window);
-		INPUT_INPUTMANAGER_API [[nodiscard]] bool HandleInputEvent(GLFWwindow* window, int key, int scancode, int action, int mods);
-		INPUT_INPUTMANAGER_API void HandleHeldEvents() const;
-		INPUT_INPUTMANAGER_API void AddListener(const InputListener& listener);
-		INPUT_INPUTMANAGER_API bool RemoveListener(const InputListener& listener);
+		INPUT_INPUTMANAGER_API static InputManager* GetInstance(GLFWwindow* window, GLFWcursor* cursor);
+#pragma region Key Events
+		INPUT_INPUTMANAGER_API void HandleKeyInputEvent(GLFWwindow* window, int key, int scancode, int action, int mods);
+		INPUT_INPUTMANAGER_API void HandleKeyHeldEvents() const;
+		INPUT_INPUTMANAGER_API void AddKeyListener(const InputListener& listener);
+		INPUT_INPUTMANAGER_API bool RemoveKeyListener(const InputListener& listener);
+#pragma endregion
+#pragma region Mouse Events
+		INPUT_INPUTMANAGER_API void HandleMouseButtonInputEvent(GLFWwindow* window, int button, int action, int mods);
+		INPUT_INPUTMANAGER_API void HandleMouseButtonHeldEvents() const;
+		INPUT_INPUTMANAGER_API void AddMouseButtonListener(const InputListener& listener);
+		INPUT_INPUTMANAGER_API bool RemoveMouseButtonListener(const InputListener& listener);
+#pragma endregion
 	private:
 		static InputManager* _instance;
 		GLFWwindow* _window;
-		// TODO: Add support for mouse input
-		std::vector<InputListener> _listenerEvents;
-		std::set<InputListener> _heldListenerEvents;
+		GLFWcursor* _cursor;
 
-		explicit InputManager(GLFWwindow* window);
+		std::vector<InputListener> _keyListenerEvents;
+		std::set<InputListener> _heldKeyListenerEvents;
+
+		std::vector<InputListener> _mouseButtonListenerEvents;
+		std::set<InputListener> _heldMouseButtonEvents;
+
+		explicit InputManager(GLFWwindow* window, GLFWcursor* cursor);
 	};
 }
 
