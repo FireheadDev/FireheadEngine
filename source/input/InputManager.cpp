@@ -4,15 +4,16 @@
 
 InputManager* InputManager::_instance = nullptr;
 
-InputManager::InputManager(GLFWwindow* window)
+InputManager::InputManager(GLFWwindow* window, GLFWcursor* cursor)
 {
 	_window = window;
+	_cursor = cursor;
 }
 
-InputManager* InputManager::GetInstance(GLFWwindow* window)
+InputManager* InputManager::GetInstance(GLFWwindow* window, GLFWcursor* cursor)
 {
 	if (!_instance)
-		_instance = new InputManager(window);
+		_instance = new InputManager(window, cursor);
 	return _instance;
 }
 
@@ -23,66 +24,123 @@ InputManager* InputManager::GetInstance(GLFWwindow* window)
  * @param scancode The unique scancode for that physical key (warning, platform specific)
  * @param action The action the event represents (either GLFW_PRESS, GLFW_REPEAT, or GLFW_RELEASE)
  * @param mods Unused, but included to conform to the signature of GLFW's input event callback for simplicity.
- * @return A boolean representing if the input was processed by a callback that has been set (true), or if it fell through (false).
  */
-bool InputManager::HandleInputEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
+void InputManager::HandleKeyInputEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	if (key == GLFW_KEY_UNKNOWN)
-		return false;
+		return;
 
-	for (auto& listener : _listenerEvents)  // NOLINT(readability-use-anyofallof)
+	for (auto& listener : _keyListenerEvents)  // NOLINT(readability-use-anyofallof)
 	{
 		// Will need to change if input is switched to use scancodes instead of keycodes.
-		if (listener.keyCode != key)
+		if (listener.code != key)
 			continue;
 		if (listener.trigger == FHE_TRIGGER_TYPE_PRESSED && action == GLFW_PRESS)
 		{
 			listener.callback(listener);
-			return true;
+			return;
 		}
 		if (listener.trigger == FHE_TRIGGER_TYPE_RELEASED && action == GLFW_RELEASE)
 		{
 			listener.callback(listener);
-			return true;
+			return;
 		}
 		if (listener.trigger == FHE_TRIGGER_TYPE_HELD)
 		{
-			if (action == GLFW_PRESS && !_heldListenerEvents.count(listener))
+			if (action == GLFW_PRESS && !_heldKeyListenerEvents.count(listener))
 			{
-				_heldListenerEvents.insert(listener);
-				return true;
+				_heldKeyListenerEvents.insert(listener);
+				return;
 			}
-			if (action == GLFW_RELEASE && _heldListenerEvents.count(listener))
+			if (action == GLFW_RELEASE && _heldKeyListenerEvents.count(listener))
 			{
-				_heldListenerEvents.erase(listener);
-				return true;
+				_heldKeyListenerEvents.erase(listener);
+				return;
 			}
+		}
+	}
+}
+
+void InputManager::HandleKeyHeldEvents() const
+{
+	for(const auto& listenerEvents : _heldKeyListenerEvents)
+	{
+		listenerEvents.callback(listenerEvents);
+	}
+}
+
+void InputManager::AddKeyListener(const InputListener& listener)
+{
+	_keyListenerEvents.push_back(listener);
+}
+
+bool InputManager::RemoveKeyListener(const InputListener& listener)
+{
+	for (auto listenerEvent = _keyListenerEvents.begin(); listenerEvent != _keyListenerEvents.end(); ++listenerEvent)
+	{
+		if (listener == *listenerEvent)
+		{
+			_keyListenerEvents.erase(listenerEvent);
+			return true;
 		}
 	}
 
 	return false;
 }
 
-void InputManager::HandleHeldEvents() const
+void InputManager::HandleMouseButtonInputEvent(GLFWwindow* window, int button, int action, int mods)
 {
-	for(const auto& listenerEvents : _heldListenerEvents)
+	for (auto& listener : _mouseButtonListenerEvents)  // NOLINT(readability-use-anyofallof)
+	{
+		// Will need to change if input is switched to use scancodes instead of keycodes.
+		if (listener.code != button)
+			continue;
+		if (listener.trigger == FHE_TRIGGER_TYPE_PRESSED && action == GLFW_PRESS)
+		{
+			listener.callback(listener);
+			return;
+		}
+		if (listener.trigger == FHE_TRIGGER_TYPE_RELEASED && action == GLFW_RELEASE)
+		{
+			listener.callback(listener);
+			return;
+		}
+		if (listener.trigger == FHE_TRIGGER_TYPE_HELD)
+		{
+			if (action == GLFW_PRESS && !_heldMouseButtonEvents.count(listener))
+			{
+				_heldMouseButtonEvents.insert(listener);
+				return;
+			}
+			if (action == GLFW_RELEASE && _heldMouseButtonEvents.count(listener))
+			{
+				_heldMouseButtonEvents.erase(listener);
+				return;
+			}
+		}
+	}
+}
+
+void InputManager::HandleMouseButtonHeldEvents() const
+{
+	for(const auto& listenerEvents : _heldMouseButtonEvents)
 	{
 		listenerEvents.callback(listenerEvents);
 	}
 }
 
-void InputManager::AddListener(const InputListener& listener)
+void InputManager::AddMouseButtonListener(const InputListener& listener)
 {
-	_listenerEvents.push_back(listener);
+	_mouseButtonListenerEvents.push_back(listener);
 }
 
-bool InputManager::RemoveListener(const InputListener& listener)
+bool InputManager::RemoveMouseButtonListener(const InputListener& listener)
 {
-	for (auto listenerEvent = _listenerEvents.begin(); listenerEvent != _listenerEvents.end(); ++listenerEvent)
+	for (auto listenerEvent = _mouseButtonListenerEvents.begin(); listenerEvent != _mouseButtonListenerEvents.end(); ++listenerEvent)
 	{
 		if (listener == *listenerEvent)
 		{
-			_listenerEvents.erase(listenerEvent);
+			_mouseButtonListenerEvents.erase(listenerEvent);
 			return true;
 		}
 	}

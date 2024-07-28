@@ -10,8 +10,8 @@
 
 struct InputListener
 {
-	// GLFW key code to listen for
-	int keyCode = GLFW_KEY_A;
+	// GLFW key code or mouse button to listen for
+	int code = GLFW_KEY_A;
 	FHETriggerType trigger;
 
 	// Callback
@@ -26,7 +26,7 @@ template<> struct std::hash<InputListener>
 {
 	size_t operator()(InputListener const& inputListener) const noexcept
 	{
-		return (std::hash<int>{}(inputListener.keyCode) ^
+		return (std::hash<int>{}(inputListener.code) ^
 			(std::hash<FHETriggerType>{}(inputListener.trigger) << 1) >> 1) ^
 			std::hash<size_t>{}(reinterpret_cast<size_t>(inputListener.callback.target<FHE_INPUT_CALLBACK_TYPE>())) << 1;
 	}

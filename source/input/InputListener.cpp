@@ -3,7 +3,7 @@
 bool InputListener::operator==(const InputListener& other) const noexcept
 {
 	// TODO: Add comparison of the functions
-	return keyCode == other.keyCode && trigger == other.trigger && callback.target<FHE_INPUT_CALLBACK_TYPE>() == other.callback.target<FHE_INPUT_CALLBACK_TYPE>();
+	return code == other.code && trigger == other.trigger && callback.target<FHE_INPUT_CALLBACK_TYPE>() == other.callback.target<FHE_INPUT_CALLBACK_TYPE>();
 }
 
 bool InputListener::operator<(const InputListener& other) const noexcept

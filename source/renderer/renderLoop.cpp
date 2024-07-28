@@ -64,6 +64,7 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 	_windowHeight = height;
 
 	_window = nullptr;
+	_cursor = nullptr;
 	_instance = nullptr;
 	_physicalDevice = nullptr;
 	_device = nullptr;
@@ -135,11 +136,13 @@ void RenderLoop::InitWindow()
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 	_window = glfwCreateWindow(_windowWidth, _windowHeight, _windowName.data(), nullptr, nullptr);
+	_cursor = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
 	glfwSetWindowUserPointer(_window, this);
 	glfwSetFramebufferSizeCallback(_window, FrameBufferResizeCallback);
 
-	_inputManager = InputManager::GetInstance(_window);
+	_inputManager = InputManager::GetInstance(_window, _cursor);
 	glfwSetKeyCallback(_window, KeyCallback);
+	glfwSetMouseButtonCallback(_window, MouseButtonCallback);
 }
 
 void RenderLoop::InitVulkan()
@@ -178,10 +181,16 @@ void RenderLoop::FrameBufferResizeCallback(GLFWwindow* window, int width, int he
 	self->_frameBufferResized = true;
 }
 
-void RenderLoop::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+void RenderLoop::KeyCallback(GLFWwindow* window, const int key, const int scancode, const int action, const int mods)
 {
 	const auto self = static_cast<RenderLoop*>(glfwGetWindowUserPointer(window));
-	(void)self->_inputManager->HandleInputEvent(window, key, scancode, action, mods);
+	self->_inputManager->HandleKeyInputEvent(window, key, scancode, action, mods);
+}
+
+void RenderLoop::MouseButtonCallback(GLFWwindow* window, const int button, const int action, const int mods)
+{
+	const auto self = static_cast<RenderLoop*>(glfwGetWindowUserPointer(window));
+	self->_inputManager->HandleMouseButtonInputEvent(window, button, action, mods);
 }
 
 void RenderLoop::CreateSurface()
@@ -782,38 +791,38 @@ void RenderLoop::SetupCamera()
 	_camera.speed = 15.f;
 
 	InputListener listenerW{};
-	listenerW.keyCode = GLFW_KEY_W;
+	listenerW.code = GLFW_KEY_W;
 	listenerW.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerW.callback = [this](const InputListener& listener)
 		{
 			_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, _camera.speed) * _deltaTime.count());
 		};
 	InputListener listenerA{};
-	listenerA.keyCode = GLFW_KEY_A;
+	listenerA.code = GLFW_KEY_A;
 	listenerA.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerA.callback = [this](const InputListener& listener)
 		{
 			_camera.view = glm::translate(_camera.view, glm::vec3(-_camera.speed, 0.f, 0.f) * _deltaTime.count());
 		};
 	InputListener listenerS{};
-	listenerS.keyCode = GLFW_KEY_S;
+	listenerS.code = GLFW_KEY_S;
 	listenerS.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerS.callback = [this](const InputListener& listener)
 		{
 			_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, -_camera.speed) * _deltaTime.count());
 		};
 	InputListener listenerD{};
-	listenerD.keyCode = GLFW_KEY_D;
+	listenerD.code = GLFW_KEY_D;
 	listenerD.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerD.callback = [this](const InputListener& listener)
 		{
 			_camera.view = glm::translate(_camera.view, glm::vec3(_camera.speed, 0.f, 0.f) * _deltaTime.count());
 		};
 
-	_inputManager->AddListener(listenerW);
-	_inputManager->AddListener(listenerA);
-	_inputManager->AddListener(listenerS);
-	_inputManager->AddListener(listenerD);
+	_inputManager->AddKeyListener(listenerW);
+	_inputManager->AddKeyListener(listenerA);
+	_inputManager->AddKeyListener(listenerS);
+	_inputManager->AddKeyListener(listenerD);
 }
 
 void RenderLoop::CreateVertexBuffer()
@@ -1752,7 +1761,7 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 			vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.indices.size()), static_cast<uint32_t>(_modelTransforms[&model]->size()), 0, 0, 0);
 		}
 		else
-		// ReSharper disable once CppUnreachableCode
+			// ReSharper disable once CppUnreachableCode
 		{
 			vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
 		}
@@ -1832,7 +1841,8 @@ void RenderLoop::UpdateUniformBuffer()
 	_lastTime = currentTime;
 
 	// Handle input (temporarily)
-	_inputManager->HandleHeldEvents();
+	_inputManager->HandleKeyHeldEvents();
+	_inputManager->HandleMouseButtonHeldEvents();
 
 	// Update transforms
 	for (size_t i = 0; i < _modelTransforms[_models.data()]->size(); ++i)
