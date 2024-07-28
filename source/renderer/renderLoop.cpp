@@ -785,30 +785,30 @@ void RenderLoop::SetupCamera()
 	listenerW.keyCode = GLFW_KEY_W;
 	listenerW.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerW.callback = [this](const InputListener& listener)
-	{
-		_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, _camera.speed) * _deltaTime.count());
-	};
+		{
+			_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, _camera.speed) * _deltaTime.count());
+		};
 	InputListener listenerA{};
 	listenerA.keyCode = GLFW_KEY_A;
 	listenerA.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerA.callback = [this](const InputListener& listener)
-	{
-		_camera.view = glm::translate(_camera.view, glm::vec3(-_camera.speed, 0.f, 0.f) * _deltaTime.count());
-	};
+		{
+			_camera.view = glm::translate(_camera.view, glm::vec3(-_camera.speed, 0.f, 0.f) * _deltaTime.count());
+		};
 	InputListener listenerS{};
 	listenerS.keyCode = GLFW_KEY_S;
 	listenerS.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerS.callback = [this](const InputListener& listener)
-	{
-		_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, -_camera.speed) * _deltaTime.count());
-	};
+		{
+			_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, -_camera.speed) * _deltaTime.count());
+		};
 	InputListener listenerD{};
 	listenerD.keyCode = GLFW_KEY_D;
 	listenerD.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerD.callback = [this](const InputListener& listener)
-	{
-		_camera.view = glm::translate(_camera.view, glm::vec3(_camera.speed, 0.f, 0.f) * _deltaTime.count());
-	};
+		{
+			_camera.view = glm::translate(_camera.view, glm::vec3(_camera.speed, 0.f, 0.f) * _deltaTime.count());
+		};
 
 	_inputManager->AddListener(listenerW);
 	_inputManager->AddListener(listenerA);
@@ -1745,11 +1745,17 @@ void RenderLoop::RecordCommandBuffer(const VkCommandBuffer& commandBuffer, const
 
 	for (auto& model : _models)
 	{
+		if (_modelTransforms[&model]->empty())
+			continue;
 		if (!RENDER_ONLY_FIRST_INSTANCE)
+		{
 			vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.indices.size()), static_cast<uint32_t>(_modelTransforms[&model]->size()), 0, 0, 0);
-			// ReSharper disable once CppUnreachableCode
-		else if (!_modelTransforms[&model]->empty())
+		}
+		else
+		// ReSharper disable once CppUnreachableCode
+		{
 			vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model.indices.size()), 1, 0, 0, 0);
+		}
 	}
 
 	vkCmdEndRenderPass(commandBuffer);
