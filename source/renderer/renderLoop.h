@@ -102,6 +102,7 @@ extern "C"
 
 		// TODO: Move into separate timing class. Potentially move the semaphores and fences there as well?
 		std::chrono::time_point<std::chrono::steady_clock> _lastTime;
+		std::chrono::duration<float, std::chrono::seconds::period> _deltaTime;
 		uint32_t _currentFrame;
 		std::vector<VkSemaphore> _imageAvailableSemaphores;
 		std::vector<VkSemaphore> _renderFinishedSemaphores;

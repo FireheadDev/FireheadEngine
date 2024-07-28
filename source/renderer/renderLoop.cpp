@@ -108,6 +108,7 @@ RenderLoop::RenderLoop(const std::string& windowName, const std::string& appName
 
 	_debugMessenger = nullptr;
 
+	_deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(0);
 	_currentFrame = 0;
 	_frameBufferResized = false;
 
@@ -778,6 +779,40 @@ void RenderLoop::SetupCamera()
 	_camera.projection = glm::perspective(glm::radians(45.f), static_cast<float>(_swapChainExtent.width) / static_cast<float>(_swapChainExtent.height), 0.1f, 100.f);
 	// Invert y coordinates for change from OpenGL to Vulkan
 	_camera.projection[1][1] *= -1;
+
+	InputListener listenerW{};
+	listenerW.keyCode = GLFW_KEY_W;
+	listenerW.trigger = FHE_TRIGGER_TYPE_HELD;
+	listenerW.callback = [this](const InputListener& listener)
+	{
+		_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, 1.f) * _deltaTime.count());
+	};
+	InputListener listenerA{};
+	listenerA.keyCode = GLFW_KEY_A;
+	listenerA.trigger = FHE_TRIGGER_TYPE_HELD;
+	listenerA.callback = [this](const InputListener& listener)
+	{
+		_camera.view = glm::translate(_camera.view, glm::vec3(-1.f, 0.f, 0.f) * _deltaTime.count());
+	};
+	InputListener listenerS{};
+	listenerS.keyCode = GLFW_KEY_S;
+	listenerS.trigger = FHE_TRIGGER_TYPE_HELD;
+	listenerS.callback = [this](const InputListener& listener)
+	{
+		_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, -1.f) * _deltaTime.count());
+	};
+	InputListener listenerD{};
+	listenerD.keyCode = GLFW_KEY_D;
+	listenerD.trigger = FHE_TRIGGER_TYPE_HELD;
+	listenerD.callback = [this](const InputListener& listener)
+	{
+		_camera.view = glm::translate(_camera.view, glm::vec3(1.f, 0.f, 0.f) * _deltaTime.count());
+	};
+
+	_inputManager->AddListener(listenerW);
+	_inputManager->AddListener(listenerA);
+	_inputManager->AddListener(listenerS);
+	_inputManager->AddListener(listenerD);
 }
 
 void RenderLoop::CreateVertexBuffer()
@@ -1786,16 +1821,18 @@ void RenderLoop::UpdateUniformBuffer()
 {
 	// Timing
 	const auto currentTime = std::chrono::high_resolution_clock::now();
-	const float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - _lastTime).count();
+	_deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - _lastTime);
 	_lastTime = currentTime;
+
+	// Handle input (temporarily)
+	_inputManager->HandleHeldEvents();
 
 	// Update transforms
 	for (size_t i = 0; i < _modelTransforms[_models.data()]->size(); ++i)
 	{
-		(*_modelTransforms[_models.data()])[i] = rotate((*_modelTransforms[_models.data()])[i], time * glm::radians(-180.f), glm::vec3(0.f, 1.f, 0.f));
+		(*_modelTransforms[_models.data()])[i] = rotate((*_modelTransforms[_models.data()])[i], _deltaTime.count() * glm::radians(-180.f), glm::vec3(0.f, 1.f, 0.f));
 	}
 
-	
 	memcpy(_uniformBuffersMapped[_currentFrame], &_camera, sizeof(_camera));
 	CopyTransformsToDevice();
 }
