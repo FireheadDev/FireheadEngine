@@ -779,34 +779,35 @@ void RenderLoop::SetupCamera()
 	_camera.projection = glm::perspective(glm::radians(45.f), static_cast<float>(_swapChainExtent.width) / static_cast<float>(_swapChainExtent.height), 0.1f, 100.f);
 	// Invert y coordinates for change from OpenGL to Vulkan
 	_camera.projection[1][1] *= -1;
+	_camera.speed = 15.f;
 
 	InputListener listenerW{};
 	listenerW.keyCode = GLFW_KEY_W;
 	listenerW.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerW.callback = [this](const InputListener& listener)
 	{
-		_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, 1.f) * _deltaTime.count());
+		_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, _camera.speed) * _deltaTime.count());
 	};
 	InputListener listenerA{};
 	listenerA.keyCode = GLFW_KEY_A;
 	listenerA.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerA.callback = [this](const InputListener& listener)
 	{
-		_camera.view = glm::translate(_camera.view, glm::vec3(-1.f, 0.f, 0.f) * _deltaTime.count());
+		_camera.view = glm::translate(_camera.view, glm::vec3(-_camera.speed, 0.f, 0.f) * _deltaTime.count());
 	};
 	InputListener listenerS{};
 	listenerS.keyCode = GLFW_KEY_S;
 	listenerS.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerS.callback = [this](const InputListener& listener)
 	{
-		_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, -1.f) * _deltaTime.count());
+		_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, -_camera.speed) * _deltaTime.count());
 	};
 	InputListener listenerD{};
 	listenerD.keyCode = GLFW_KEY_D;
 	listenerD.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerD.callback = [this](const InputListener& listener)
 	{
-		_camera.view = glm::translate(_camera.view, glm::vec3(1.f, 0.f, 0.f) * _deltaTime.count());
+		_camera.view = glm::translate(_camera.view, glm::vec3(_camera.speed, 0.f, 0.f) * _deltaTime.count());
 	};
 
 	_inputManager->AddListener(listenerW);

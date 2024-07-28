@@ -7,6 +7,7 @@ struct Camera
 {
 	glm::mat4 view;
 	glm::mat4 projection;
+	float speed;
 };
 
 #endif
