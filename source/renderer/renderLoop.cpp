@@ -30,8 +30,9 @@ const std::vector<const char*> RenderLoop::VALIDATION_LAYERS = {
 const std::vector<const char*> RenderLoop::DEVICE_EXTENSIONS = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 };
-const std::string RenderLoop::MODEL_PATH = "../models/trout_rainbow.obj";
-const std::string RenderLoop::TEXTURE_PATH = "../textures/trout_rainbow.png";
+const std::string RenderLoop::SHADER_PATH = "shaders";
+const std::string RenderLoop::MODEL_PATH = "models/trout_rainbow.obj";
+const std::string RenderLoop::TEXTURE_PATH = "textures/trout_rainbow.png";
 
 namespace
 {
@@ -492,8 +493,8 @@ void RenderLoop::CreateDescriptorSetLayout()
 
 void RenderLoop::CreateGraphicsPipeline()
 {
-	const auto vertShaderCode = ReadFile("../shaders/shader_vert.spv");
-	const auto fragShaderCode = ReadFile("../shaders/shader_frag.spv");
+	const auto vertShaderCode = ReadFile(RenderLoop::SHADER_PATH + "/shader_vert.spv");
+	const auto fragShaderCode = ReadFile(RenderLoop::SHADER_PATH + "/shader_frag.spv");
 
 	const VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
 	const VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);

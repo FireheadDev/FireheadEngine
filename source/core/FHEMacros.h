@@ -3,7 +3,7 @@
 
 
 #ifdef NDEBUG
-	#define IS_DEBUGGING(valueOnTrue, valueOnFalse) valueOnFalse
+	#define IS_DEBUGGING_TERNARY(valueOnTrue, valueOnFalse) valueOnFalse
 #else
 	#define IS_DEBUGGING_TERNARY(valueOnTrue, valueOnFalse) valueOnTrue
 #endif

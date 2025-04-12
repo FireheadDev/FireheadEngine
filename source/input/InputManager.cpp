@@ -10,6 +10,7 @@ InputManager::InputManager(GLFWwindow* window, GLFWcursor* cursor)
 	_cursor = cursor;
 }
 
+// TODO: Add logic to support multiple instances with different windows (is multiple cursors even possible???)
 InputManager* InputManager::GetInstance(GLFWwindow* window, GLFWcursor* cursor)
 {
 	if (!_instance)
