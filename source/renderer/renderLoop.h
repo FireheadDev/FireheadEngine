@@ -124,6 +124,7 @@ extern "C"
 		const static uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 		const static uint32_t FISH_WIDTH_COUNT = 11;
 		const static uint32_t FISH_DEPTH_COUNT = 9;
+		const static std::string SHADER_PATH;
 		const static std::string MODEL_PATH;
 		const static std::string TEXTURE_PATH;
 #pragma endregion
