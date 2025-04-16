@@ -796,7 +796,7 @@ void RenderLoop::SetupCamera()
 	listenerW.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerW.callback = [this](const InputListener& listener)
 		{
-			_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, _camera.speed) * _deltaTime.count());
+			_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, -_camera.speed) * _deltaTime.count());
 		};
 	InputListener listenerA{};
 	listenerA.code = GLFW_KEY_A;
@@ -810,7 +810,7 @@ void RenderLoop::SetupCamera()
 	listenerS.trigger = FHE_TRIGGER_TYPE_HELD;
 	listenerS.callback = [this](const InputListener& listener)
 		{
-			_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, -_camera.speed) * _deltaTime.count());
+			_camera.view = glm::translate(_camera.view, glm::vec3(0.f, 0.f, _camera.speed) * _deltaTime.count());
 		};
 	InputListener listenerD{};
 	listenerD.code = GLFW_KEY_D;
@@ -1841,7 +1841,7 @@ void RenderLoop::UpdateUniformBuffer()
 	_deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - _lastTime);
 	_lastTime = currentTime;
 
-	// Handle input (temporarily)
+	// TODO: Move to broader scope game loop once added
 	_inputManager->HandleKeyHeldEvents();
 	_inputManager->HandleMouseButtonHeldEvents();
 
@@ -1851,7 +1851,9 @@ void RenderLoop::UpdateUniformBuffer()
 		(*_modelTransforms[_models.data()])[i] = rotate((*_modelTransforms[_models.data()])[i], _deltaTime.count() * glm::radians(-180.f), glm::vec3(0.f, 1.f, 0.f));
 	}
 
+	// Copy updated camera data to GPU mapped memory
 	memcpy(_uniformBuffersMapped[_currentFrame], &_camera, sizeof(_camera));
+	// Do the same for all the transforms
 	CopyTransformsToDevice();
 }
 

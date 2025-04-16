@@ -110,6 +110,7 @@ extern "C"
 		std::vector<VkFence> _inFlightFences;
 		bool _frameBufferResized;
 
+		// TODO: Move to a broader scope such as the app.
 		InputManager* _inputManager;
 		Camera _camera;
 
