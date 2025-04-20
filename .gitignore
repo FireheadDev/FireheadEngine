@@ -1,5 +1,7 @@
-build
-libraries
+build/*
+libraries/*
+!libraries/bootstrap.json
 *.spv
 .vs
+.vscode
 .idea

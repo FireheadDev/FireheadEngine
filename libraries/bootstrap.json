@@ -1,0 +1,34 @@
+[
+   {
+      "name": "glfw",
+      "source": {
+         "type": "git",
+         "url": "https://github.com/glfw/glfw.git",
+         "revision": "7b6aead9fb88b3623e3b3725ebb42670cbe4c579"
+      }
+   },
+   {
+      "name": "glm",
+      "source": {
+         "type": "git",
+         "url": "https://github.com/g-truc/glm.git",
+         "revision": "0af55ccecd98d4e5a8d1fad7de25ba429d60e863"
+      }
+   },
+   {
+      "name": "ktx",
+      "source": {
+         "type": "git",
+         "url": "https://github.com/KhronosGroup/KTX-Software.git",
+         "revision": "beef80159525d9fb7abb8645ea85f4c4f6842e8"
+      }
+   },
+   {
+      "name": "tinyobjloader",
+      "source": {
+         "type": "git",
+         "url": "https://github.com/tinyobjloader/tinyobjloader.git",
+         "revision": "e60d33385e2e4f7fa891513150f2532b5bbcb093"
+      }
+   }
+]

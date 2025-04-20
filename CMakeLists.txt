@@ -46,20 +46,20 @@ endif()
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory(./libraries/glfw)
+add_subdirectory(./libraries/src/glfw)
 set_target_properties(glfw PROPERTIES FOLDER "libraries/GLFW")
 set_target_properties(uninstall PROPERTIES FOLDER "libraries/GLFW")
 set_target_properties(update_mappings PROPERTIES FOLDER "libraries/GLFW")
 
 # GLM
-add_subdirectory(./libraries/glm)
+add_subdirectory(./libraries/src/glm)
 set_target_properties(glm PROPERTIES FOLDER "libraries")
 
 # KTX
 set(KTX_FEATURE_TESTS OFF CACHE BOOL "" FORCE)
 set(KTX_FEATURE_TOOLS OFF CACHE BOOL "" FORCE)
 set(KTX_FEATURE_STATIC_LIBRARY ON CACHE BOOL "" FORCE)
-add_subdirectory(./libraries/ktx)
+add_subdirectory(./libraries/src/ktx)
 set_target_properties(astcenc-avx2-static PROPERTIES FOLDER "libraries/KTX")
 set_target_properties(ktx PROPERTIES FOLDER "libraries/KTX")
 set_target_properties(ktx_read PROPERTIES FOLDER "libraries/KTX")
@@ -68,7 +68,7 @@ set_target_properties(obj_basisu_cbind PROPERTIES FOLDER "libraries/KTX")
 set_target_properties(objUtil PROPERTIES FOLDER "libraries/KTX")
 
 # tinyobjloader
-add_subdirectory(./libraries/tinyobjloader)
+add_subdirectory(./libraries/src/tinyobjloader)
 set_target_properties(tinyobjloader PROPERTIES FOLDER "libraries")
 
 target_include_directories(${MODULE_NAME}
@@ -78,10 +78,10 @@ target_include_directories(${MODULE_NAME}
 	PUBLIC ./source/renderer
 	PUBLIC ./source/input
 	${VULKAN_INCLUDE_DIRS}
-	PUBLIC ./libraries/glfw
-	PUBLIC ./libraries/glm
-	PUBLIC ./libraries/ktx/include
-	PUBLIC ./libraries/tinyobjloader
+	PUBLIC ./libraries/src/glfw
+	PUBLIC ./libraries/src/glm
+	PUBLIC ./libraries/src/ktx/include
+	PUBLIC ./libraries/src/tinyobjloader
 )
 
 # Handle 1st-party modules
@@ -97,10 +97,10 @@ target_link_directories(
 	PRIVATE ./source/renderer
 	PRIVATE ./source/input
 	PUBLIC ${VULKAN_LIBRARIES}
-	PRIVATE ./libraries/glfw
-	PRIVATE ./libraries/glm
-	PRIVATE ./libraries/ktx
-	PRIVATE ./libraries/tinyobjloader
+	PRIVATE ./libraries/src/glfw
+	PRIVATE ./libraries/src/glm
+	PRIVATE ./libraries/src/ktx
+	PRIVATE ./libraries/src/tinyobjloader
 )
 
 target_link_libraries(${MODULE_NAME}
