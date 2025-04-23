@@ -1,6 +1,6 @@
 :: NOTE This script compiles with the most recent version of the VulkanSDK found
 @echo off
-set ShaderDirectory=..\shaders
+set "ShaderDirectory=%~pd0..\shaders"
 set CurrentShader=NULL
 set VulkanDirectory=C:/VulkanSDK
 
@@ -8,7 +8,6 @@ call :FindVulkanDirectory
 call :FindShaders
 
 echo Compilations finished!
-pause
 goto :eof
 
 
@@ -69,4 +68,3 @@ exit /b
 :LogError
 echo ERR:
 echo ERR_MESSAGE
-pause

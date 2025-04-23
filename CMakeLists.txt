@@ -26,6 +26,10 @@ file(
 add_executable(${MODULE_NAME} ${APP_SRC})
 source_group("source" FILES ${APP_SRC})
 
+# Run setup script to setup project if needed
+execute_process(COMMAND python3 tools/setup.py)
+
+
 # Handle 3rd-party libraries
 # Vulkan
 if (DEFINED VULKAN_SDK_PATH)

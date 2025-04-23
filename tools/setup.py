@@ -1,18 +1,17 @@
 #!/usr/bin/python3
 
 import os
-import sys
 import subprocess
 
+SCRIPT_DIRECTORY = os.path.dirname(__file__) + "\\"
 BOOTSTRAPPING_REPO_HTTPS_ADDR = "https://github.com/corporateshark/bootstrapping.git"
 BOOTSTRAPPING_VERSION = "f395ada"
 
 def setup_boostrapping():
-   if not os.path.isdir(os.path.join("libraries\\bootstrapping")):
+   if not os.path.isdir(SCRIPT_DIRECTORY + "..\\libraries\\bootstrapping"):
       # path is different when cloning to account for the directory changes below (seems like it doesn't get fully evaluated until it's used by the subprocess)
       command_clone = ["git", "clone", BOOTSTRAPPING_REPO_HTTPS_ADDR, os.path.join("bootstrapping")]
       command_branch = ["git", "branch", "setup-commit", BOOTSTRAPPING_VERSION]
-      command_bootstrap = ["python3", "bootstrap.py"]
 
       os.chdir("libraries")
       # clone boostrapping
@@ -22,20 +21,30 @@ def setup_boostrapping():
       # checkout this specific version of boostrapping expected
       subprocess.run(command_branch)
       print("Commit checked out.")
-      os.chdir("../../")
    else:
       print("Bootstrapping found, skipping boostrapping setup")
 
 def run_boostrapping():
-   libraries_location = "libraries"
-   bootstrapping_location = os.path.join(libraries_location, "bootstrapping")
-   script = os.path.join(bootstrapping_location, "bootstrap.py")
-   json = os.path.join(libraries_location, "bootstrap.json")
+   print("Bootstrapping Starting...")
+   libraries_location = SCRIPT_DIRECTORY + "..\\libraries"
+   bootstrapping_location = libraries_location + "\\bootstrapping"
+   script = bootstrapping_location + "\\bootstrap.py"
+   json = libraries_location + "\\bootstrap.json"
 
-   command = 'python3 {} -b {} --local-bootstrap-file={} --break-on-first-error'.format(script, libraries_location, json)
-   os.system(command)
+   command = ['python3', script, '-b', libraries_location, '--local-bootstrap-file=' + json, '--break-on-first-error']
+   result = subprocess.check_output(command, shell=True, text=True)
+   print(result)
+   print("Boostrapping Finished.")
+
+def compile_shaders():
+   print("Shader compilation Starting...")
+   command = ['call', SCRIPT_DIRECTORY + 'compile-shaders.bat']
+   result = subprocess.check_output(command, shell=True, text=True)
+   print(result)
+   print("Shader compilation Finished.")
 
 
 print("Beginning engine setup.")
 setup_boostrapping()
 run_boostrapping()
+compile_shaders()
