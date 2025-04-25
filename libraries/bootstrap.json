@@ -4,7 +4,7 @@
       "source": {
          "type": "git",
          "url": "https://github.com/glfw/glfw.git",
-         "revision": "7b6aead9fb88b3623e3b3725ebb42670cbe4c579"
+         "revision": "e7ea71be039836da3a98cea55ae5569cb5eb885c"
       }
    },
    {
@@ -12,7 +12,7 @@
       "source": {
          "type": "git",
          "url": "https://github.com/g-truc/glm.git",
-         "revision": "0af55ccecd98d4e5a8d1fad7de25ba429d60e863"
+         "revision": "2d4c4b4dd31fde06cfffad7915c2b3006402322f"
       }
    },
    {
@@ -20,7 +20,7 @@
       "source": {
          "type": "git",
          "url": "https://github.com/KhronosGroup/KTX-Software.git",
-         "revision": "beef80159525d9fb7abb8645ea85f4c4f6842e8"
+         "revision": "a3603eda5c068cd91ab9729b3dddd81e5967ed88"
       }
    },
    {
@@ -28,7 +28,7 @@
       "source": {
          "type": "git",
          "url": "https://github.com/tinyobjloader/tinyobjloader.git",
-         "revision": "e60d33385e2e4f7fa891513150f2532b5bbcb093"
+         "revision": "3bb554cf74428d7db13418b4aca1b9752a1d2be8"
       }
    }
 ]
