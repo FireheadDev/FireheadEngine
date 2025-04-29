@@ -1,10 +1,8 @@
-:: NOTE This script compiles with the most recent version of the VulkanSDK found
+:: NOTE This script compiles with the version of the VulkanSDK set as a system variable
 @echo off
 set "ShaderDirectory=%~pd0..\shaders"
-set CurrentShader=NULL
-set VulkanDirectory=C:/VulkanSDK
+set "CurrentShader=NULL"
 
-call :FindVulkanDirectory
 call :FindShaders
 
 echo Compilations finished!
@@ -13,9 +11,10 @@ goto :eof
 
 
 :FindShaders
-for %%i in (%ShaderDirectory%/*) do (
+for %%i in ("%ShaderDirectory%/*") do (
    setlocal enabledelayedexpansion
    set CurrentShader=%%~nxi
+   echo !CurrentShader!
    :: Vertex shader
    if "%%~xi"==".vert" (
       call :CompileShader
@@ -49,19 +48,7 @@ for %%i in (%CurrentShader%) do (
    setlocal enabledelayedexpansion
    set Extension=%%~xi
    set Extension=!Extension:~1!
-   %VulkanDirectory%/Bin/glslc.exe %ShaderDirectory%/%%~nxi -o "%ShaderDirectory%/%%~ni_!Extension!.spv"
-)
-exit /b
-
-:FindVulkanDirectory
-if NOT exist %VulkanDirectory% (
-   set ERR_MESSAGE="Could not find the VulkanSDK"
-   call :LogError
-   exit /b
-)
-
-for /D %%i in (%VulkanDirectory%/*) do (
-   set VulkanDirectory=%VulkanDirectory%/%%~nxi
+   "%VULKAN_SDK%/Bin/glslc.exe" "%ShaderDirectory%/%%~nxi" -o "%ShaderDirectory%/%%~ni_!Extension!.spv"
 )
 exit /b
 
